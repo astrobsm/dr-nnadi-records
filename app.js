@@ -8,6 +8,7 @@ window.addEventListener('DOMContentLoaded', () => {
     loadRecords();
     loadPatients();
     populatePatientDropdown();
+    updateHospitalFilters();
     displayRecords();
     setDefaultDate();
     // Load logo after a short delay to ensure DOM is ready
@@ -101,6 +102,36 @@ function populatePatientDropdown() {
     });
 }
 
+// Update hospital filter dropdowns
+function updateHospitalFilters() {
+    // Get unique hospitals from records
+    const hospitals = [...new Set(records.map(r => r.hospitalName))].sort();
+    
+    // Update filter hospital dropdown
+    const filterHospital = document.getElementById('filterHospital');
+    const currentFilter = filterHospital.value;
+    filterHospital.innerHTML = '<option value="">All Hospitals</option>';
+    hospitals.forEach(hospital => {
+        const option = document.createElement('option');
+        option.value = hospital;
+        option.textContent = hospital;
+        filterHospital.appendChild(option);
+    });
+    filterHospital.value = currentFilter;
+    
+    // Update summary hospital dropdown
+    const summaryHospital = document.getElementById('summaryHospital');
+    const currentSummary = summaryHospital.value;
+    summaryHospital.innerHTML = '<option value="">All Hospitals</option>';
+    hospitals.forEach(hospital => {
+        const option = document.createElement('option');
+        option.value = hospital;
+        option.textContent = hospital;
+        summaryHospital.appendChild(option);
+    });
+    summaryHospital.value = currentSummary;
+}
+
 // Load patient details when selected from dropdown
 function loadPatientDetails() {
     const folderNumber = document.getElementById('existingPatient').value;
@@ -148,6 +179,22 @@ function handleServiceTypeChange() {
     }
 }
 
+// Handle hospital change to show/hide other hospital field
+function handleHospitalChange() {
+    const hospitalName = document.getElementById('hospitalName').value;
+    const otherHospitalGroup = document.getElementById('otherHospitalGroup');
+    const otherHospital = document.getElementById('otherHospital');
+
+    if (hospitalName === 'Other') {
+        otherHospitalGroup.style.display = 'block';
+        otherHospital.setAttribute('required', 'required');
+    } else {
+        otherHospitalGroup.style.display = 'none';
+        otherHospital.removeAttribute('required');
+        otherHospital.value = '';
+    }
+}
+
 // Handle form submission
 document.getElementById('patientForm').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -158,6 +205,12 @@ document.getElementById('patientForm').addEventListener('submit', (e) => {
     const serviceType = document.getElementById('serviceType').value;
     const fee = parseFloat(document.getElementById('fee').value);
     const notes = document.getElementById('notes').value.trim();
+    
+    // Get hospital name
+    let hospitalName = document.getElementById('hospitalName').value;
+    if (hospitalName === 'Other') {
+        hospitalName = document.getElementById('otherHospital').value.trim();
+    }
     
     let serviceDetails = serviceType;
     
@@ -183,6 +236,7 @@ document.getElementById('patientForm').addEventListener('submit', (e) => {
         patientName,
         folderNumber,
         reviewDate,
+        hospitalName,
         serviceType,
         serviceDetails,
         fee,
@@ -204,6 +258,9 @@ document.getElementById('patientForm').addEventListener('submit', (e) => {
         savePatients();
         populatePatientDropdown();
     }
+    
+    // Update hospital filters
+    updateHospitalFilters();
     
     // Show success message
     showSuccessMessage('Record saved successfully!');
@@ -286,6 +343,7 @@ function displayRecords() {
     const recordsList = document.getElementById('recordsList');
     const filterDate = document.getElementById('filterDate').value;
     const filterService = document.getElementById('filterService').value;
+    const filterHospital = document.getElementById('filterHospital').value;
     
     let filteredRecords = records;
     
@@ -296,6 +354,10 @@ function displayRecords() {
     
     if (filterService) {
         filteredRecords = filteredRecords.filter(r => r.serviceType === filterService);
+    }
+    
+    if (filterHospital) {
+        filteredRecords = filteredRecords.filter(r => r.hospitalName === filterHospital);
     }
     
     if (filteredRecords.length === 0) {
@@ -324,6 +386,10 @@ function displayRecords() {
                     <span class="detail-value">${formatDate(record.reviewDate)}</span>
                 </div>
                 <div class="detail-item">
+                    <span class="detail-label">Hospital</span>
+                    <span class="detail-value">${record.hospitalName}</span>
+                </div>
+                <div class="detail-item">
                     <span class="detail-label">Service</span>
                     <span class="detail-value">${record.serviceDetails}</span>
                 </div>
@@ -349,6 +415,7 @@ function filterRecords() {
 function clearFilters() {
     document.getElementById('filterDate').value = '';
     document.getElementById('filterService').value = '';
+    document.getElementById('filterHospital').value = '';
     displayRecords();
 }
 
@@ -370,6 +437,7 @@ function deleteRecord(id) {
 // Generate daily summary
 function generateDailySummary() {
     const summaryDate = document.getElementById('summaryDate').value;
+    const summaryHospital = document.getElementById('summaryHospital').value;
     const dailySummary = document.getElementById('dailySummary');
     
     if (!summaryDate) {
@@ -377,10 +445,15 @@ function generateDailySummary() {
         return;
     }
     
-    const dailyRecords = records.filter(r => r.reviewDate === summaryDate);
+    let dailyRecords = records.filter(r => r.reviewDate === summaryDate);
+    
+    // Filter by hospital if selected
+    if (summaryHospital) {
+        dailyRecords = dailyRecords.filter(r => r.hospitalName === summaryHospital);
+    }
     
     if (dailyRecords.length === 0) {
-        dailySummary.innerHTML = '<div class="no-records"><p>No records found for this date.</p></div>';
+        dailySummary.innerHTML = '<div class="no-records"><p>No records found for this date' + (summaryHospital ? ' and hospital' : '') + '.</p></div>';
         return;
     }
     
@@ -424,6 +497,7 @@ function generateDailySummary() {
                 <tr>
                     <th>Patient Name</th>
                     <th>Folder No.</th>
+                    ${!summaryHospital ? '<th>Hospital</th>' : ''}
                     <th>Service</th>
                     <th>Fee (₦)</th>
                 </tr>
@@ -433,12 +507,13 @@ function generateDailySummary() {
                     <tr>
                         <td>${record.patientName}</td>
                         <td>${record.folderNumber}</td>
+                        ${!summaryHospital ? `<td>${record.hospitalName}</td>` : ''}
                         <td>${record.serviceDetails}</td>
                         <td>₦${record.fee.toLocaleString('en-NG', {minimumFractionDigits: 2})}</td>
                     </tr>
                 `).join('')}
                 <tr style="background: #2a5298; color: white; font-weight: bold;">
-                    <td colspan="3" style="text-align: right;">TOTAL</td>
+                    <td colspan="${!summaryHospital ? 4 : 3}" style="text-align: right;">TOTAL</td>
                     <td>₦${totalRevenue.toLocaleString('en-NG', {minimumFractionDigits: 2})}</td>
                 </tr>
             </tbody>
@@ -482,16 +557,22 @@ function printDailyReport() {
 // Export to PDF
 async function exportDailyReport() {
     const summaryDate = document.getElementById('summaryDate').value;
+    const summaryHospital = document.getElementById('summaryHospital').value;
     
     if (!summaryDate) {
         alert('Please select a date first.');
         return;
     }
     
-    const dailyRecords = records.filter(r => r.reviewDate === summaryDate);
+    let dailyRecords = records.filter(r => r.reviewDate === summaryDate);
+    
+    // Filter by hospital if selected
+    if (summaryHospital) {
+        dailyRecords = dailyRecords.filter(r => r.hospitalName === summaryHospital);
+    }
     
     if (dailyRecords.length === 0) {
-        alert('No records found for this date.');
+        alert('No records found for this date' + (summaryHospital ? ' and hospital' : '') + '.');
         return;
     }
     
@@ -502,6 +583,9 @@ async function exportDailyReport() {
         const pageWidth = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();
         let yPos = 20;
+        
+        // Determine which hospital name to display
+        const hospitalForHeader = summaryHospital || (dailyRecords.length > 0 ? dailyRecords[0].hospitalName : 'Niger Foundation Hospital Enugu');
         
         // Add logo - ensure it's loaded
         if (logoDataUrl) {
@@ -521,7 +605,7 @@ async function exportDailyReport() {
         yPos += 7;
         
         doc.setFontSize(12);
-        doc.text('Niger Foundation Hospital Enugu', pageWidth / 2, yPos, { align: 'center' });
+        doc.text(hospitalForHeader, pageWidth / 2, yPos, { align: 'center' });
         yPos += 6;
         
         doc.setFontSize(10);
@@ -559,8 +643,13 @@ async function exportDailyReport() {
         
         doc.setFontSize(9);
         doc.text('Patient Name', 20, yPos);
-        doc.text('Folder', 85, yPos);
-        doc.text('Service', 115, yPos);
+        doc.text('Folder', 70, yPos);
+        if (!summaryHospital) {
+            doc.text('Hospital', 95, yPos);
+            doc.text('Service', 130, yPos);
+        } else {
+            doc.text('Service', 100, yPos);
+        }
         doc.text('Fee (N)', pageWidth - 20, yPos, { align: 'right' });
         yPos += 8;
         
@@ -580,8 +669,13 @@ async function exportDailyReport() {
                 doc.rect(15, yPos - 5, pageWidth - 30, 8, 'F');
                 doc.setFontSize(9);
                 doc.text('Patient Name', 20, yPos);
-                doc.text('Folder', 85, yPos);
-                doc.text('Service', 115, yPos);
+                doc.text('Folder', 70, yPos);
+                if (!summaryHospital) {
+                    doc.text('Hospital', 95, yPos);
+                    doc.text('Service', 130, yPos);
+                } else {
+                    doc.text('Service', 100, yPos);
+                }
                 doc.text('Fee (N)', pageWidth - 20, yPos, { align: 'right' });
                 yPos += 8;
                 doc.setFont(undefined, 'normal');
@@ -596,13 +690,21 @@ async function exportDailyReport() {
             
             doc.setFontSize(9);
             // Truncate text to fit
-            const patientName = record.patientName.length > 22 ? record.patientName.substring(0, 22) + '...' : record.patientName;
-            const folderNum = record.folderNumber.length > 12 ? record.folderNumber.substring(0, 12) : record.folderNumber;
-            const service = record.serviceDetails.length > 25 ? record.serviceDetails.substring(0, 25) + '...' : record.serviceDetails;
+            const patientName = record.patientName.length > 18 ? record.patientName.substring(0, 18) + '...' : record.patientName;
+            const folderNum = record.folderNumber.length > 10 ? record.folderNumber.substring(0, 10) : record.folderNumber;
             
             doc.text(patientName, 20, yPos);
-            doc.text(folderNum, 85, yPos);
-            doc.text(service, 115, yPos);
+            doc.text(folderNum, 70, yPos);
+            
+            if (!summaryHospital) {
+                const hospitalShort = record.hospitalName.length > 15 ? record.hospitalName.substring(0, 15) + '...' : record.hospitalName;
+                doc.text(hospitalShort, 95, yPos);
+                const service = record.serviceDetails.length > 20 ? record.serviceDetails.substring(0, 20) + '...' : record.serviceDetails;
+                doc.text(service, 130, yPos);
+            } else {
+                const service = record.serviceDetails.length > 25 ? record.serviceDetails.substring(0, 25) + '...' : record.serviceDetails;
+                doc.text(service, 100, yPos);
+            }
             
             // Format fee properly
             const feeText = 'N' + record.fee.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -617,7 +719,7 @@ async function exportDailyReport() {
         doc.setTextColor(255, 255, 255);
         doc.rect(15, yPos - 5, pageWidth - 30, 8, 'F');
         doc.setFontSize(10);
-        doc.text('TOTAL', 115, yPos);
+        doc.text('TOTAL', summaryHospital ? 100 : 130, yPos);
         const totalText = 'N' + totalRevenue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
         doc.text(totalText, pageWidth - 20, yPos, { align: 'right' });
         
@@ -635,7 +737,8 @@ async function exportDailyReport() {
         doc.text(footerText, pageWidth / 2, pageHeight - 10, { align: 'center' });
         
         // Save PDF
-        doc.save('Daily_Report_' + summaryDate + '.pdf');
+        const hospitalSlug = (summaryHospital || 'All_Hospitals').replace(/\s+/g, '_');
+        doc.save('Daily_Report_' + hospitalSlug + '_' + summaryDate + '.pdf');
         
     } catch (error) {
         console.error('Error generating PDF:', error);

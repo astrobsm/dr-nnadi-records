@@ -65,6 +65,20 @@
                     </div>
 
                     <div class="form-group">
+                        <label for="hospitalName">Hospital/Facility *</label>
+                        <select id="hospitalName" required onchange="handleHospitalChange()">
+                            <option value="Niger Foundation Hospital Enugu">Niger Foundation Hospital Enugu</option>
+                            <option value="Other">Other (Specify)</option>
+                        </select>
+                    </div>
+
+                    <!-- Dynamic Field for Other Hospital -->
+                    <div class="form-group" id="otherHospitalGroup" style="display: none;">
+                        <label for="otherHospital">Specify Hospital/Facility *</label>
+                        <input type="text" id="otherHospital" placeholder="Enter hospital or facility name">
+                    </div>
+
+                    <div class="form-group">
                         <label for="serviceType">Type of Service *</label>
                         <select id="serviceType" required onchange="handleServiceTypeChange()">
                             <option value="">-- Select Service Type --</option>
@@ -141,6 +155,12 @@
                             </select>
                         </div>
                         <div class="form-group">
+                            <label for="filterHospital">Filter by Hospital</label>
+                            <select id="filterHospital" onchange="filterRecords()">
+                                <option value="">All Hospitals</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
                             <button class="btn btn-secondary" onclick="clearFilters()">Clear Filters</button>
                         </div>
                     </div>
@@ -153,9 +173,17 @@
         <div id="dailyTab" class="tab-content">
             <div class="card">
                 <h3>Daily Summary</h3>
-                <div class="form-group">
-                    <label for="summaryDate">Select Date</label>
-                    <input type="date" id="summaryDate" onchange="generateDailySummary()">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="summaryDate">Select Date</label>
+                        <input type="date" id="summaryDate" onchange="generateDailySummary()">
+                    </div>
+                    <div class="form-group">
+                        <label for="summaryHospital">Select Hospital</label>
+                        <select id="summaryHospital" onchange="generateDailySummary()">
+                            <option value="">All Hospitals</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="summary-actions">
                     <button class="btn btn-primary" onclick="exportDailyReport()">Export to PDF</button>
