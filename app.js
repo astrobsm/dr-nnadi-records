@@ -262,7 +262,8 @@ function showTab(tabName) {
     const tabMap = {
         'record': 'recordTab',
         'view': 'viewTab',
-        'daily': 'dailyTab'
+        'daily': 'dailyTab',
+        'data': 'dataTab'
     };
     
     document.getElementById(tabMap[tabName]).classList.add('active');
@@ -275,6 +276,8 @@ function showTab(tabName) {
         displayRecords();
     } else if (tabName === 'daily') {
         generateDailySummary();
+    } else if (tabName === 'data') {
+        updateDataStats();
     }
 }
 
@@ -637,5 +640,141 @@ async function exportDailyReport() {
     } catch (error) {
         console.error('Error generating PDF:', error);
         alert('Error generating PDF. Please try using the Print option instead.');
+    }
+}
+
+// Data Management Functions
+
+// Update data statistics
+function updateDataStats() {
+    document.getElementById('totalRecords').textContent = records.length;
+    document.getElementById('totalPatients').textContent = Object.keys(patients).length;
+    
+    // Calculate storage size
+    const dataSize = new Blob([JSON.stringify({records, patients})]).size;
+    const sizeKB = (dataSize / 1024).toFixed(2);
+    document.getElementById('storageUsed').textContent = sizeKB + ' KB';
+}
+
+// Export all data to file
+function exportAllData() {
+    const dataToExport = {
+        records: records,
+        patients: patients,
+        exportDate: new Date().toISOString(),
+        appVersion: '1.0'
+    };
+    
+    const dataStr = JSON.stringify(dataToExport, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `dr-nnadi-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    alert('Backup file downloaded successfully!\n\nYou can use this file to restore data on this or another device.');
+}
+
+// Import data from file
+function importData() {
+    const fileInput = document.getElementById('importFile');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const importedData = JSON.parse(e.target.result);
+            const mergeMode = document.getElementById('mergeData').checked;
+            
+            if (mergeMode) {
+                // Merge mode - combine with existing data
+                let recordsAdded = 0;
+                let patientsAdded = 0;
+                
+                // Merge records (avoid duplicates by ID)
+                const existingIds = new Set(records.map(r => r.id));
+                importedData.records.forEach(record => {
+                    if (!existingIds.has(record.id)) {
+                        records.push(record);
+                        recordsAdded++;
+                    }
+                });
+                
+                // Merge patients
+                Object.keys(importedData.patients).forEach(folderNumber => {
+                    if (!patients[folderNumber]) {
+                        patients[folderNumber] = importedData.patients[folderNumber];
+                        patientsAdded++;
+                    }
+                });
+                
+                saveRecords();
+                savePatients();
+                populatePatientDropdown();
+                displayRecords();
+                updateDataStats();
+                
+                alert(`Data merged successfully!\n\nRecords added: ${recordsAdded}\nPatients added: ${patientsAdded}`);
+            } else {
+                // Replace mode - confirm first
+                if (confirm(`This will REPLACE all existing data with the imported data.\n\nCurrent records: ${records.length}\nImported records: ${importedData.records.length}\n\nAre you sure?`)) {
+                    records = importedData.records;
+                    patients = importedData.patients;
+                    
+                    saveRecords();
+                    savePatients();
+                    populatePatientDropdown();
+                    displayRecords();
+                    updateDataStats();
+                    
+                    alert('Data restored successfully!');
+                }
+            }
+            
+            // Reset file input
+            fileInput.value = '';
+            
+        } catch (error) {
+            console.error('Error importing data:', error);
+            alert('Error importing data. Please make sure the file is a valid backup file.');
+            fileInput.value = '';
+        }
+    };
+    
+    reader.readAsText(file);
+}
+
+// Delete all data
+function deleteAllData() {
+    const confirmation = prompt('WARNING: This will permanently delete ALL data!\n\nType "DELETE" to confirm:');
+    
+    if (confirmation === 'DELETE') {
+        records = [];
+        patients = {};
+        
+        localStorage.removeItem('patientRecords');
+        localStorage.removeItem('patientsDatabase');
+        
+        populatePatientDropdown();
+        displayRecords();
+        updateDataStats();
+        
+        alert('All data has been deleted.');
+        
+        // Refresh the page
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
+    } else if (confirmation !== null) {
+        alert('Deletion cancelled. You must type "DELETE" exactly to confirm.');
     }
 }

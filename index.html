@@ -32,6 +32,7 @@
             <button class="tab-button active" onclick="showTab('record')">New Record</button>
             <button class="tab-button" onclick="showTab('view')">View Records</button>
             <button class="tab-button" onclick="showTab('daily')">Daily Summary</button>
+            <button class="tab-button" onclick="showTab('data')">Data Backup</button>
         </div>
 
         <!-- New Record Tab -->
@@ -161,6 +162,50 @@
                     <button class="btn btn-secondary" onclick="printDailyReport()">Print Report</button>
                 </div>
                 <div id="dailySummary" class="daily-summary"></div>
+            </div>
+        </div>
+
+        <!-- Data Management Tab -->
+        <div id="dataTab" class="tab-content">
+            <div class="card">
+                <h3>Data Management</h3>
+                <p style="color: #6c757d; margin-bottom: 20px;">
+                    All your patient data is stored locally on this device. Use these tools to backup or transfer data between devices.
+                </p>
+                
+                <div class="data-section">
+                    <h4>📥 Backup Data</h4>
+                    <p>Download all your records to a file that you can save or transfer to another device.</p>
+                    <button class="btn btn-primary" onclick="exportAllData()">Download Backup File</button>
+                </div>
+
+                <div class="data-section">
+                    <h4>📤 Restore Data</h4>
+                    <p>Upload a backup file to restore or merge records on this device.</p>
+                    <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importData()">
+                    <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">Upload Backup File</button>
+                    <div style="margin-top: 10px;">
+                        <label style="display: flex; align-items: center; gap: 10px; font-weight: normal;">
+                            <input type="checkbox" id="mergeData" checked>
+                            Merge with existing data (uncheck to replace all data)
+                        </label>
+                    </div>
+                </div>
+
+                <div class="data-section">
+                    <h4>📊 Data Statistics</h4>
+                    <div id="dataStats" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 10px;">
+                        <p><strong>Total Records:</strong> <span id="totalRecords">0</span></p>
+                        <p><strong>Total Patients:</strong> <span id="totalPatients">0</span></p>
+                        <p><strong>Storage Used:</strong> <span id="storageUsed">0 KB</span></p>
+                    </div>
+                </div>
+
+                <div class="data-section" style="border-top: 2px solid #dc3545; padding-top: 20px;">
+                    <h4 style="color: #dc3545;">🗑️ Delete All Data</h4>
+                    <p style="color: #dc3545;">Warning: This will permanently delete all records and patients from this device.</p>
+                    <button class="btn btn-danger" onclick="deleteAllData()">Delete All Data</button>
+                </div>
             </div>
         </div>
     </div>
