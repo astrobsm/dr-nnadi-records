@@ -1,0 +1,18 @@
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore server files (not needed for GitHub Pages)
+start-server.bat
+start-server.ps1
+MOBILE_DEPLOYMENT.md
+
+# Ignore local development files
+*.log
+node_modules/
+.vscode/
+.idea/
+
+# Do NOT commit patient data
+patient-data.json
+records-backup.json

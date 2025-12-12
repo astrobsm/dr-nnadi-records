@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#2a5298">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Dr Nnadi's Records">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="logo.png">
+    <title>Dr Nnadi's Surgeries, Reviews and Procedures</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header Section -->
+        <header class="app-header">
+            <div class="logo-section">
+                <img src="logo.png" alt="Niger Foundation Hospital Logo" class="hospital-logo" id="hospitalLogo">
+            </div>
+            <div class="header-content">
+                <h1>Dr Nnadi's Surgeries, Reviews and Procedures</h1>
+                <h2>Niger Foundation Hospital Enugu</h2>
+                <p class="department">Burns Plastic and Reconstructive Surgery Services</p>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <div class="tabs">
+            <button class="tab-button active" onclick="showTab('record')">New Record</button>
+            <button class="tab-button" onclick="showTab('view')">View Records</button>
+            <button class="tab-button" onclick="showTab('daily')">Daily Summary</button>
+        </div>
+
+        <!-- New Record Tab -->
+        <div id="recordTab" class="tab-content active">
+            <div class="card">
+                <h3>Patient Record Form</h3>
+                <form id="patientForm">
+                    <div class="form-group">
+                        <label for="existingPatient">Select Existing Patient (Optional)</label>
+                        <select id="existingPatient" onchange="loadPatientDetails()">
+                            <option value="">-- Select Existing Patient or Add New Below --</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="patientName">Patient Name *</label>
+                        <input type="text" id="patientName" required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="folderNumber">Folder Number *</label>
+                            <input type="text" id="folderNumber" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="reviewDate">Date of Review *</label>
+                            <input type="date" id="reviewDate" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="serviceType">Type of Service *</label>
+                        <select id="serviceType" required onchange="handleServiceTypeChange()">
+                            <option value="">-- Select Service Type --</option>
+                            <option value="Normal Ward Round">Normal Ward Round</option>
+                            <option value="Wound Care Review">Wound Care Review</option>
+                            <option value="Bedside Debridement">Bedside Debridement</option>
+                            <option value="Surgery">Surgery</option>
+                            <option value="First Time Out Patient Review">First Time Out Patient Review</option>
+                            <option value="Follow Up Out Patient Review">Follow Up Out Patient Review</option>
+                            <option value="Negative Pressure Wound Therapy">Negative Pressure Wound Therapy</option>
+                            <option value="Burn Wound Care Review">Burn Wound Care Review</option>
+                            <option value="Others">Others</option>
+                        </select>
+                    </div>
+
+                    <!-- Dynamic Field for NPWT Size -->
+                    <div class="form-group" id="npwtSizeGroup" style="display: none;">
+                        <label for="npwtSize">NPWT Size *</label>
+                        <select id="npwtSize">
+                            <option value="">-- Select Size --</option>
+                            <option value="Small">Small</option>
+                            <option value="Intermediate">Intermediate</option>
+                            <option value="Extensive">Extensive</option>
+                        </select>
+                    </div>
+
+                    <!-- Dynamic Field for Others Specification -->
+                    <div class="form-group" id="othersGroup" style="display: none;">
+                        <label for="othersSpecify">Please Specify *</label>
+                        <input type="text" id="othersSpecify" placeholder="Specify the service type">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fee">Fee for Care (₦) *</label>
+                        <input type="number" id="fee" min="0" step="0.01" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="notes">Additional Notes</label>
+                        <textarea id="notes" rows="4" placeholder="Optional notes about the procedure or review"></textarea>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Save Record</button>
+                        <button type="button" class="btn btn-secondary" onclick="resetForm()">Clear Form</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- View Records Tab -->
+        <div id="viewTab" class="tab-content">
+            <div class="card">
+                <h3>All Patient Records</h3>
+                <div class="filter-section">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="filterDate">Filter by Date</label>
+                            <input type="date" id="filterDate" onchange="filterRecords()">
+                        </div>
+                        <div class="form-group">
+                            <label for="filterService">Filter by Service</label>
+                            <select id="filterService" onchange="filterRecords()">
+                                <option value="">All Services</option>
+                                <option value="Normal Ward Round">Normal Ward Round</option>
+                                <option value="Wound Care Review">Wound Care Review</option>
+                                <option value="Bedside Debridement">Bedside Debridement</option>
+                                <option value="Surgery">Surgery</option>
+                                <option value="First Time Out Patient Review">First Time Out Patient Review</option>
+                                <option value="Follow Up Out Patient Review">Follow Up Out Patient Review</option>
+                                <option value="Negative Pressure Wound Therapy">Negative Pressure Wound Therapy</option>
+                                <option value="Burn Wound Care Review">Burn Wound Care Review</option>
+                                <option value="Others">Others</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <button class="btn btn-secondary" onclick="clearFilters()">Clear Filters</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="recordsList" class="records-list"></div>
+            </div>
+        </div>
+
+        <!-- Daily Summary Tab -->
+        <div id="dailyTab" class="tab-content">
+            <div class="card">
+                <h3>Daily Summary</h3>
+                <div class="form-group">
+                    <label for="summaryDate">Select Date</label>
+                    <input type="date" id="summaryDate" onchange="generateDailySummary()">
+                </div>
+                <div class="summary-actions">
+                    <button class="btn btn-primary" onclick="exportDailyReport()">Export to PDF</button>
+                    <button class="btn btn-secondary" onclick="printDailyReport()">Print Report</button>
+                </div>
+                <div id="dailySummary" class="daily-summary"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
