@@ -1063,3 +1063,320 @@ async function exportPatientHistory() {
         alert('Error generating PDF. Please make sure you have internet connection for the PDF library.');
     }
 }
+
+
+// Export date range report to PDF
+async function exportDateRangeReport() {
+    const filterDateStart = document.getElementById('filterDateStart').value;
+    const filterDateEnd = document.getElementById('filterDateEnd').value;
+    const filterService = document.getElementById('filterService').value;
+    const filterHospital = document.getElementById('filterHospital').value;
+    const filterPatient = document.getElementById('filterPatient') ? document.getElementById('filterPatient').value : '';
+
+    // Determine date range
+    let startDate = filterDateStart;
+    let endDate = filterDateEnd;
+    
+    if (!startDate && !endDate) {
+        // If no dates specified, use all records
+        if (records.length === 0) {
+            alert('No records available to export.');
+            return;
+        }
+    }
+
+    // Filter records
+    let filteredRecords = records;
+
+    if (startDate) {
+        filteredRecords = filteredRecords.filter(r => r.reviewDate >= startDate);
+    }
+
+    if (endDate) {
+        filteredRecords = filteredRecords.filter(r => r.reviewDate <= endDate);
+    }
+
+    if (filterService) {
+        filteredRecords = filteredRecords.filter(r => r.serviceType === filterService);
+    }
+
+    if (filterHospital) {
+        filteredRecords = filteredRecords.filter(r => r.hospitalName === filterHospital);
+    }
+
+    if (filterPatient) {
+        filteredRecords = filteredRecords.filter(r => r.folderNumber === filterPatient);
+    }
+
+    if (filteredRecords.length === 0) {
+        alert('No records found for the selected criteria.');
+        return;
+    }
+
+    // Sort by date
+    filteredRecords = filteredRecords.sort((a, b) => new Date(a.reviewDate) - new Date(b.reviewDate));
+
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        let yPos = 20;
+
+        // Add logo if available
+        if (logoDataUrl) {
+            try {
+                doc.addImage(logoDataUrl, 'PNG', pageWidth / 2 - 20, yPos, 40, 40);
+                yPos += 45;
+            } catch (e) {
+                console.error('Error adding logo:', e);
+                yPos += 5;
+            }
+        }
+
+        // Header
+        doc.setFontSize(16);
+        doc.setFont(undefined, 'bold');
+        doc.text("Dr Nnadi's Surgeries, Reviews and Procedures", pageWidth / 2, yPos, { align: 'center' });
+        yPos += 7;
+
+        doc.setFontSize(12);
+        doc.text('Niger Foundation Hospital Enugu', pageWidth / 2, yPos, { align: 'center' });
+        yPos += 6;
+
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        doc.text('Burns Plastic and Reconstructive Surgery Services', pageWidth / 2, yPos, { align: 'center' });
+        yPos += 12;
+
+        // Report title and date range
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        const dateRangeText = startDate && endDate 
+            ? `Date Range Report: ${formatDate(startDate)} - ${formatDate(endDate)}`
+            : startDate 
+                ? `Records from ${formatDate(startDate)}`
+                : endDate
+                    ? `Records up to ${formatDate(endDate)}`
+                    : 'All Records Report';
+        doc.text(dateRangeText, pageWidth / 2, yPos, { align: 'center' });
+        yPos += 10;
+
+        // Summary statistics
+        const totalPatients = new Set(filteredRecords.map(r => r.folderNumber)).size;
+        const totalRevenue = filteredRecords.reduce((sum, r) => sum + r.fee, 0);
+        const totalVisits = filteredRecords.length;
+
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        doc.text('Total Visits: ' + totalVisits, 20, yPos);
+        yPos += 5;
+        doc.text('Unique Patients: ' + totalPatients, 20, yPos);
+        yPos += 5;
+        doc.text('Total Revenue: N' + totalRevenue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}), 20, yPos);
+        yPos += 5;
+
+        if (filterHospital) {
+            doc.text('Hospital: ' + filterHospital, 20, yPos);
+            yPos += 5;
+        }
+        if (filterService) {
+            doc.text('Service: ' + filterService, 20, yPos);
+            yPos += 5;
+        }
+        if (filterPatient) {
+            const patient = patients[filterPatient];
+            if (patient) {
+                doc.text('Patient: ' + patient.patientName + ' (' + filterPatient + ')', 20, yPos);
+                yPos += 5;
+            }
+        }
+
+        yPos += 5;
+
+        // Draw line
+        doc.setLineWidth(0.5);
+        doc.line(15, yPos, pageWidth - 15, yPos);
+        yPos += 8;
+
+        // Table header
+        doc.setFont(undefined, 'bold');
+        doc.setFillColor(42, 82, 152);
+        doc.setTextColor(255, 255, 255);
+        doc.rect(15, yPos - 5, pageWidth - 30, 8, 'F');
+
+        doc.setFontSize(9);
+        doc.text('Date', 20, yPos);
+        doc.text('Patient', 45, yPos);
+        doc.text('Folder', 85, yPos);
+        if (!filterHospital) {
+            doc.text('Hospital', 105, yPos);
+        }
+        doc.text('Service', filterHospital ? 105 : 135, yPos);
+        doc.text('Fee (N)', pageWidth - 20, yPos, { align: 'right' });
+        yPos += 8;
+
+        // Table rows
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(0, 0, 0);
+
+        filteredRecords.forEach((record, index) => {
+            if (yPos > pageHeight - 30) {
+                doc.addPage();
+                yPos = 20;
+
+                // Repeat header on new page
+                doc.setFont(undefined, 'bold');
+                doc.setFillColor(42, 82, 152);
+                doc.setTextColor(255, 255, 255);
+                doc.rect(15, yPos - 5, pageWidth - 30, 8, 'F');
+                doc.setFontSize(9);
+                doc.text('Date', 20, yPos);
+                doc.text('Patient', 45, yPos);
+                doc.text('Folder', 85, yPos);
+                if (!filterHospital) {
+                    doc.text('Hospital', 105, yPos);
+                }
+                doc.text('Service', filterHospital ? 105 : 135, yPos);
+                doc.text('Fee (N)', pageWidth - 20, yPos, { align: 'right' });
+                yPos += 8;
+                doc.setFont(undefined, 'normal');
+                doc.setTextColor(0, 0, 0);
+            }
+
+            // Alternate row colors
+            if (index % 2 === 0) {
+                doc.setFillColor(248, 249, 250);
+                doc.rect(15, yPos - 5, pageWidth - 30, 7, 'F');
+            }
+
+            doc.setFontSize(8);
+            
+            // Format date
+            const dateFormatted = new Date(record.reviewDate).toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
+            doc.text(dateFormatted, 20, yPos);
+            
+            // Truncate text to fit
+            const patientName = record.patientName.length > 15 ? record.patientName.substring(0, 15) + '...' : record.patientName;
+            doc.text(patientName, 45, yPos);
+            
+            const folderNum = record.folderNumber.length > 8 ? record.folderNumber.substring(0, 8) : record.folderNumber;
+            doc.text(folderNum, 85, yPos);
+
+            if (!filterHospital) {
+                const hospitalShort = record.hospitalName.length > 12 ? record.hospitalName.substring(0, 12) + '...' : record.hospitalName;
+                doc.text(hospitalShort, 105, yPos);
+                const service = record.serviceDetails.length > 18 ? record.serviceDetails.substring(0, 18) + '...' : record.serviceDetails;
+                doc.text(service, 135, yPos);
+            } else {
+                const service = record.serviceDetails.length > 25 ? record.serviceDetails.substring(0, 25) + '...' : record.serviceDetails;
+                doc.text(service, 105, yPos);
+            }
+
+            const feeText = 'N' + record.fee.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            doc.text(feeText, pageWidth - 20, yPos, { align: 'right' });
+            yPos += 7;
+        });
+
+        // Total row
+        yPos += 3;
+        doc.setFont(undefined, 'bold');
+        doc.setFillColor(42, 82, 152);
+        doc.setTextColor(255, 255, 255);
+        doc.rect(15, yPos - 5, pageWidth - 30, 8, 'F');
+        doc.setFontSize(10);
+        doc.text('TOTAL', filterHospital ? 105 : 135, yPos);
+        const totalText = 'N' + totalRevenue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        doc.text(totalText, pageWidth - 20, yPos, { align: 'right' });
+
+        // Service breakdown section
+        if (yPos < pageHeight - 60) {
+            yPos += 15;
+        } else {
+            doc.addPage();
+            yPos = 20;
+        }
+
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(12);
+        doc.text('Service Breakdown', 20, yPos);
+        yPos += 8;
+
+        // Group by service type
+        const serviceBreakdown = {};
+        filteredRecords.forEach(record => {
+            if (!serviceBreakdown[record.serviceType]) {
+                serviceBreakdown[record.serviceType] = {
+                    count: 0,
+                    revenue: 0
+                };
+            }
+            serviceBreakdown[record.serviceType].count++;
+            serviceBreakdown[record.serviceType].revenue += record.fee;
+        });
+
+        // Service breakdown table header
+        doc.setFont(undefined, 'bold');
+        doc.setFillColor(42, 82, 152);
+        doc.setTextColor(255, 255, 255);
+        doc.rect(15, yPos - 5, pageWidth - 30, 8, 'F');
+        doc.setFontSize(9);
+        doc.text('Service Type', 20, yPos);
+        doc.text('Count', pageWidth / 2, yPos);
+        doc.text('Revenue (N)', pageWidth - 20, yPos, { align: 'right' });
+        yPos += 8;
+
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(0, 0, 0);
+
+        Object.entries(serviceBreakdown).forEach(([service, data], index) => {
+            if (yPos > pageHeight - 20) {
+                doc.addPage();
+                yPos = 20;
+            }
+
+            if (index % 2 === 0) {
+                doc.setFillColor(248, 249, 250);
+                doc.rect(15, yPos - 5, pageWidth - 30, 7, 'F');
+            }
+
+            doc.setFontSize(9);
+            const serviceName = service.length > 35 ? service.substring(0, 35) + '...' : service;
+            doc.text(serviceName, 20, yPos);
+            doc.text(data.count.toString(), pageWidth / 2, yPos);
+            const revenueText = 'N' + data.revenue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            doc.text(revenueText, pageWidth - 20, yPos, { align: 'right' });
+            yPos += 7;
+        });
+
+        // Footer
+        doc.setTextColor(100, 100, 100);
+        doc.setFont(undefined, 'normal');
+        doc.setFontSize(8);
+        const footerText = 'Generated on ' + new Date().toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        doc.text(footerText, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+        // Save PDF
+        const dateRangeSlug = startDate && endDate 
+            ? `${startDate}_to_${endDate}`
+            : startDate 
+                ? `from_${startDate}`
+                : endDate
+                    ? `to_${endDate}`
+                    : 'All_Records';
+        const fileName = `Date_Range_Report_${dateRangeSlug}.pdf`;
+        doc.save(fileName);
+
+    } catch (error) {
+        console.error('Error generating PDF:', error);
+        alert('Error generating PDF. Please make sure you have internet connection for the PDF library.');
+    }
+}
+
+
