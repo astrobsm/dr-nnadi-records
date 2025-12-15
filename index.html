@@ -136,8 +136,12 @@
                 <div class="filter-section">
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="filterDate">Filter by Date</label>
-                            <input type="date" id="filterDate" onchange="filterRecords()">
+                            <label for="filterDateStart">From Date</label>
+                            <input type="date" id="filterDateStart" onchange="filterRecords()">
+                        </div>
+                        <div class="form-group">
+                            <label for="filterDateEnd">To Date</label>
+                            <input type="date" id="filterDateEnd" onchange="filterRecords()">
                         </div>
                         <div class="form-group">
                             <label for="filterService">Filter by Service</label>
@@ -251,6 +255,8 @@
     <script src="app.js"></script>
 </body>
 </html>
+
+
 
 
 
