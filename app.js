@@ -81,6 +81,28 @@ function savePatients() {
     localStorage.setItem('patientsDatabase', JSON.stringify(patients));
 }
 
+// Populate patient filter dropdown in View Records tab
+function populatePatientFilter() {
+    const dropdown = document.getElementById('filterPatient');
+    if (!dropdown) return;
+
+    // Clear existing options except the first one
+    dropdown.innerHTML = '<option value="">All Patients</option>';
+    
+    // Sort patients by name
+    const sortedPatients = Object.values(patients).sort((a, b) =>
+        a.patientName.localeCompare(b.patientName)
+    );
+    
+    // Add patient options
+    sortedPatients.forEach(patient => {
+        const option = document.createElement('option');
+        option.value = patient.folderNumber;
+        option.textContent = `${patient.patientName} - ${patient.folderNumber}`;
+        dropdown.appendChild(option);
+    });
+}
+
 // Populate patient dropdown
 function populatePatientDropdown() {
     const dropdown = document.getElementById('existingPatient');
@@ -879,5 +901,165 @@ function deleteAllData() {
         }, 1000);
     } else if (confirmation !== null) {
         alert('Deletion cancelled. You must type "DELETE" exactly to confirm.');
+    }
+}
+
+
+
+
+
+
+
+// Export patient history to PDF
+async function exportPatientHistory() {
+    const filterPatient = document.getElementById('filterPatient').value;
+    
+    if (!filterPatient) {
+        alert('Please select a patient first.');
+        return;
+    }
+
+    const patient = patients[filterPatient];
+    if (!patient) {
+        alert('Patient not found.');
+        return;
+    }
+
+    const patientRecords = records.filter(r => r.folderNumber === filterPatient).sort((a, b) => new Date(b.reviewDate) - new Date(a.reviewDate));
+
+    if (patientRecords.length === 0) {
+        alert('No records found for this patient.');
+        return;
+    }
+
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        let yPos = 20;
+
+        // Add logo if available
+        if (logoDataUrl) {
+            try {
+                doc.addImage(logoDataUrl, 'PNG', pageWidth / 2 - 20, yPos, 40, 40);
+                yPos += 45;
+            } catch (e) {
+                console.error('Error adding logo:', e);
+                yPos += 5;
+            }
+        }
+
+        // Header
+        doc.setFontSize(16);
+        doc.setFont(undefined, 'bold');
+        doc.text("Dr Nnadi's Surgeries, Reviews and Procedures", pageWidth / 2, yPos, { align: 'center' });
+        yPos += 7;
+
+        doc.setFontSize(12);
+        doc.text('Niger Foundation Hospital Enugu', pageWidth / 2, yPos, { align: 'center' });
+        yPos += 6;
+
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        doc.text('Burns Plastic and Reconstructive Surgery Services', pageWidth / 2, yPos, { align: 'center' });
+        yPos += 12;
+
+        // Patient Information
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text('Patient History Report', pageWidth / 2, yPos, { align: 'center' });
+        yPos += 10;
+
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'bold');
+        doc.text('Patient: ' + patient.patientName, 20, yPos);
+        yPos += 6;
+        doc.text('Folder Number: ' + patient.folderNumber, 20, yPos);
+        yPos += 6;
+        doc.setFont(undefined, 'normal');
+        doc.text('Total Visits: ' + patientRecords.length, 20, yPos);
+        yPos += 6;
+        doc.text('First Visit: ' + formatDate(patient.firstVisit), 20, yPos);
+        yPos += 6;
+        const latestVisit = patientRecords.length > 0 ? patientRecords[0].reviewDate : patient.firstVisit;
+        doc.text('Latest Visit: ' + formatDate(latestVisit), 20, yPos);
+        yPos += 6;
+        const totalFees = patientRecords.reduce((sum, r) => sum + r.fee, 0);
+        doc.text('Total Fees: N' + totalFees.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}), 20, yPos);
+        yPos += 12;
+
+        // Draw line
+        doc.setLineWidth(0.5);
+        doc.line(15, yPos, pageWidth - 15, yPos);
+        yPos += 8;
+
+        // Visit History
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text('Visit History', 20, yPos);
+        yPos += 8;
+
+        // Records
+        doc.setFont(undefined, 'normal');
+        doc.setFontSize(9);
+
+        patientRecords.forEach((record, index) => {
+            if (yPos > pageHeight - 40) {
+                doc.addPage();
+                yPos = 20;
+            }
+
+            // Visit number
+            doc.setFont(undefined, 'bold');
+            doc.text(`Visit ${index + 1}`, 20, yPos);
+            yPos += 5;
+            
+            doc.setFont(undefined, 'normal');
+            doc.text('Date: ' + formatDate(record.reviewDate), 25, yPos);
+            yPos += 5;
+            doc.text('Hospital: ' + record.hospitalName, 25, yPos);
+            yPos += 5;
+            doc.text('Service: ' + record.serviceDetails, 25, yPos);
+            yPos += 5;
+            doc.text('Fee: N' + record.fee.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}), 25, yPos);
+            yPos += 5;
+            
+            if (record.notes) {
+                doc.text('Notes: ' + record.notes.substring(0, 80), 25, yPos);
+                yPos += 5;
+                if (record.notes.length > 80) {
+                    doc.text('  ' + record.notes.substring(80, 160), 25, yPos);
+                    yPos += 5;
+                }
+            }
+            
+            yPos += 3;
+            // Draw separator line
+            doc.setDrawColor(200, 200, 200);
+            doc.line(20, yPos, pageWidth - 20, yPos);
+            yPos += 6;
+        });
+
+        // Footer
+        doc.setTextColor(100, 100, 100);
+        doc.setFont(undefined, 'normal');
+        doc.setFontSize(8);
+        const footerText = 'Generated on ' + new Date().toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        doc.text(footerText, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+        // Save PDF
+        const fileName = `Patient_History_${patient.patientName.replace(/\s+/g, '_')}_${patient.folderNumber}.pdf`;
+        doc.save(fileName);
+
+    } catch (error) {
+        console.error('Error generating PDF:', error);
+        alert('Error generating PDF. Please make sure you have internet connection for the PDF library.');
     }
 }
