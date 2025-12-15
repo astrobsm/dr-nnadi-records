@@ -1106,6 +1106,13 @@ async function exportDateRangeReport() {
 
     if (filterPatient) {
         filteredRecords = filteredRecords.filter(r => r.folderNumber === filterPatient);
+        // Enable export button when a patient is selected
+        const exportBtn = document.getElementById('exportPatientBtn');
+        if (exportBtn) exportBtn.disabled = false;
+    } else {
+        // Disable export button when no patient is selected
+        const exportBtn = document.getElementById('exportPatientBtn');
+        if (exportBtn) exportBtn.disabled = true;
     }
 
     if (filteredRecords.length === 0) {
@@ -1378,5 +1385,6 @@ async function exportDateRangeReport() {
         alert('Error generating PDF. Please make sure you have internet connection for the PDF library.');
     }
 }
+
 
 
