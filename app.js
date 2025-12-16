@@ -266,10 +266,6 @@ document.getElementById('patientForm').addEventListener('submit', (e) => {
         createdAt: new Date().toISOString()
     };
     
-    // Add to records array
-    records.unshift(record);
-    saveRecords();
-    
     // Add patient to patients database if not already exists
     if (!patients[folderNumber]) {
         patients[folderNumber] = {
@@ -399,6 +395,7 @@ function displayRecords() {
                     <div class="record-folder">Folder: ${record.folderNumber}</div>
                 </div>
                 <div class="record-actions">
+                    <button class="btn btn-primary" onclick="editRecord(${record.id})" style="margin-right: 10px;">Edit</button>
                     <button class="btn btn-danger" onclick="deleteRecord(${record.id})">Delete</button>
                 </div>
             </div>
@@ -1385,6 +1382,112 @@ async function exportDateRangeReport() {
         alert('Error generating PDF. Please make sure you have internet connection for the PDF library.');
     }
 }
+
+
+
+
+
+
+
+// Global variable to track if we're editing
+let editingRecordId = null;
+
+// Edit record
+function editRecord(id) {
+    const record = records.find(r => r.id === id);
+    if (!record) {
+        alert('Record not found.');
+        return;
+    }
+
+    // Set editing mode
+    editingRecordId = id;
+
+    // Populate form with record data
+    document.getElementById('patientName').value = record.patientName;
+    document.getElementById('folderNumber').value = record.folderNumber;
+    document.getElementById('reviewDate').value = record.reviewDate;
+    document.getElementById('fee').value = record.fee || '';
+    document.getElementById('notes').value = record.notes || '';
+
+    // Set hospital
+    const hospitalSelect = document.getElementById('hospitalName');
+    const hospitalExists = Array.from(hospitalSelect.options).some(opt => opt.value === record.hospitalName);
+    
+    if (hospitalExists) {
+        hospitalSelect.value = record.hospitalName;
+    } else {
+        hospitalSelect.value = 'Other';
+        handleHospitalChange();
+        document.getElementById('otherHospital').value = record.hospitalName;
+    }
+
+    // Set service type
+    const serviceSelect = document.getElementById('serviceType');
+    const serviceExists = Array.from(serviceSelect.options).some(opt => opt.value === record.serviceType);
+    
+    if (serviceExists) {
+        serviceSelect.value = record.serviceType;
+        handleServiceTypeChange();
+
+        // Handle NPWT size if applicable
+        if (record.serviceType === 'Negative Pressure Wound Therapy' && record.serviceDetails.includes('(')) {
+            const sizeMatch = record.serviceDetails.match(/\((.*?)\)/);
+            if (sizeMatch) {
+                document.getElementById('npwtSize').value = sizeMatch[1];
+            }
+        }
+    } else {
+        // Must be "Others"
+        serviceSelect.value = 'Others';
+        handleServiceTypeChange();
+        document.getElementById('othersSpecify').value = record.serviceDetails;
+    }
+
+    // Update form button text
+    const submitBtn = document.querySelector('#patientForm button[type="submit"]');
+    submitBtn.textContent = 'Update Record';
+    submitBtn.classList.add('btn-warning');
+    submitBtn.classList.remove('btn-primary');
+
+    // Show cancel button
+    let cancelBtn = document.getElementById('cancelEditBtn');
+    if (!cancelBtn) {
+        cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.id = 'cancelEditBtn';
+        cancelBtn.className = 'btn btn-secondary';
+        cancelBtn.textContent = 'Cancel Edit';
+        cancelBtn.onclick = cancelEdit;
+        cancelBtn.style.marginLeft = '10px';
+        submitBtn.parentNode.insertBefore(cancelBtn, submitBtn.nextSibling);
+    }
+
+    // Switch to record tab
+    showTab('record');
+
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Cancel edit mode
+function cancelEdit() {
+    editingRecordId = null;
+    resetForm();
+    
+    // Remove cancel button
+    const cancelBtn = document.getElementById('cancelEditBtn');
+    if (cancelBtn) {
+        cancelBtn.remove();
+    }
+
+    // Reset submit button
+    const submitBtn = document.querySelector('#patientForm button[type="submit"]');
+    submitBtn.textContent = 'Save Record';
+    submitBtn.classList.remove('btn-warning');
+    submitBtn.classList.add('btn-primary');
+}
+
 
 
 
