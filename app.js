@@ -1492,3 +1492,41 @@ function cancelEdit() {
 
 
 
+
+
+
+
+
+// Sync patients database from records (ensures consistency)
+function syncPatientsFromRecords() {
+    let updated = false;
+    
+    records.forEach(record => {
+        if (!patients[record.folderNumber]) {
+            // Add missing patient to database
+            patients[record.folderNumber] = {
+                patientName: record.patientName,
+                folderNumber: record.folderNumber,
+                firstVisit: record.reviewDate
+            };
+            updated = true;
+        } else {
+            // Update patient name if it has changed
+            if (patients[record.folderNumber].patientName !== record.patientName) {
+                patients[record.folderNumber].patientName = record.patientName;
+                updated = true;
+            }
+            // Update first visit if this record is earlier
+            if (record.reviewDate < patients[record.folderNumber].firstVisit) {
+                patients[record.folderNumber].firstVisit = record.reviewDate;
+                updated = true;
+            }
+        }
+    });
+    
+    if (updated) {
+        savePatients();
+        console.log('Patient database synchronized with records');
+    }
+}
+
