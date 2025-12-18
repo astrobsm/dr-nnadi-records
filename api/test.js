@@ -1,10 +1,8 @@
-import { db } from '@vercel/postgres';
+import { sql } from '@vercel/postgres';
 
 export default async function handler(req, res) {
   try {
-    const client = await db.connect();
-    const result = await client.query('SELECT NOW() as current_time');
-    client.release();
+    const result = await sql`SELECT NOW() as current_time`;
     
     return res.status(200).json({ 
       success: true, 

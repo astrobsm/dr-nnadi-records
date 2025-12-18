@@ -1,12 +1,10 @@
-import { db } from '@vercel/postgres';
+import { sql } from '@vercel/postgres';
 
 export default async function handler(req, res) {
-  const client = await db.connect();
-  
   try {
     // GET - Fetch all patients
     if (req.method === 'GET') {
-      const { rows } = await client.query(`
+      const { rows } = await sql`
         SELECT 
           folder_number as "folderNumber",
           patient_name as "patientName",
@@ -14,7 +12,7 @@ export default async function handler(req, res) {
           created_at as "createdAt"
         FROM patients
         ORDER BY patient_name ASC
-      `);
+      `;
       
       // Convert to object format for compatibility
       const patients = {};
@@ -22,14 +20,11 @@ export default async function handler(req, res) {
         patients[patient.folderNumber] = patient;
       });
       
-      client.release();
       return res.status(200).json({ success: true, patients });
     }
 
-    client.release();
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   } catch (error) {
-    client.release();
     console.error('Patients API error:', error);
     return res.status(500).json({ 
       success: false, 
