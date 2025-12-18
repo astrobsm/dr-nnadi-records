@@ -93,10 +93,11 @@ Write-Host ""
 # Step 5: Deploy to Vercel
 Write-Host "Step 5: Deploying to Vercel..." -ForegroundColor Cyan
 Write-Info "This will deploy your application to production"
+Write-Info "Using project name: dr-nnadi-records"
 Write-Host ""
 
 try {
-    vercel --prod --yes
+    vercel --prod --yes --name dr-nnadi-records
     if ($LASTEXITCODE -eq 0) {
         Write-Success "Deployment successful!"
     } else {

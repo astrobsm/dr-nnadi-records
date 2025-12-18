@@ -38,7 +38,7 @@ Write-Host ""
 
 # Deploy
 Write-Host "Deploying..." -ForegroundColor Cyan
-vercel --prod --yes
+vercel --prod --yes --name dr-nnadi-records
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Deployment failed" -ForegroundColor Red
     Read-Host "Press Enter to exit"
