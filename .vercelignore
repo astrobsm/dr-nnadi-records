@@ -1,0 +1,12 @@
+node_modules
+.git
+.env.local
+*.log
+.DS_Store
+changes_applied.txt
+deploy-to-github.bat
+auto-deploy.bat
+DEPLOY_WITHOUT_GIT.txt
+GITHUB_DEPLOYMENT.md
+MOBILE_DEPLOYMENT.md
+README.md

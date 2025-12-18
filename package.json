@@ -1,0 +1,16 @@
+{
+  "name": "dr-nnadi-records",
+  "version": "2.0.0",
+  "description": "Dr Nnadi's Surgeries, Reviews and Procedures Management System",
+  "main": "api/index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "keywords": ["medical", "records", "surgery", "vercel"],
+  "author": "Dr Nnadi",
+  "license": "MIT",
+  "dependencies": {
+    "@vercel/postgres": "^0.5.1"
+  }
+}

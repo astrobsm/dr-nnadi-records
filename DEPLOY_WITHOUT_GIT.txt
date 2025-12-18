@@ -1,0 +1,103 @@
+========================================
+DEPLOY WITHOUT GIT - SIMPLE METHOD
+========================================
+
+Since Git is not installed on your computer, follow these steps to deploy using GitHub's web interface:
+
+STEP 1: Go to Your Repository
+==============================
+1. Open your browser
+2. Go to: https://github.com/astrobsm/dr-nnadi-records
+3. Sign in to GitHub if you haven't
+
+
+STEP 2: Upload Files
+==============================
+1. Click the "Add file" button (top right)
+2. Select "Upload files"
+3. Drag and drop these 6 files from your folder:
+   
+   ✓ index.html
+   ✓ styles.css
+   ✓ app.js
+   ✓ manifest.json
+   ✓ logo.png
+   ✓ README.md
+
+4. In the commit message box, type: "Deploy application"
+5. Click "Commit changes" (green button)
+
+
+STEP 3: Enable GitHub Pages
+==============================
+1. Click "Settings" tab (top of page)
+2. Scroll down and click "Pages" in the left sidebar
+3. Under "Source":
+   - Select branch: "main"
+   - Select folder: "/ (root)"
+4. Click "Save"
+5. Wait 1-2 minutes
+
+
+STEP 4: Access Your Application
+==============================
+Your app will be live at:
+
+   🌐 https://astrobsm.github.io/dr-nnadi-records/
+
+Copy this URL and:
+- Open it in your phone's browser
+- Add to Home Screen to use like an app!
+
+
+========================================
+UPDATING THE APP LATER
+========================================
+
+To update the app with changes:
+
+1. Go to: https://github.com/astrobsm/dr-nnadi-records
+2. Click on the file you want to update (e.g., app.js)
+3. Click the pencil icon (✏️ Edit)
+4. Make your changes
+5. Scroll down and click "Commit changes"
+6. Changes appear in 1-2 minutes at your live site
+
+
+========================================
+ALTERNATIVE: INSTALL GIT (OPTIONAL)
+========================================
+
+If you want to use Git in the future:
+
+1. Download Git: https://git-scm.com/download/win
+2. Install with default settings
+3. Restart your computer
+4. Run auto-deploy.bat again
+
+
+========================================
+NEED HELP?
+========================================
+
+Having trouble? You can also try:
+
+OPTION A: Use GitHub Desktop (No command line needed)
+- Download: https://desktop.github.com
+- Sign in to your GitHub account
+- Clone your repository
+- Drag files into the folder
+- Commit and push
+
+OPTION B: Use VS Code with Git
+- VS Code has built-in Git support
+- Open the folder in VS Code
+- Use the Source Control panel
+
+
+========================================
+
+Niger Foundation Hospital Enugu
+Burns Plastic and Reconstructive Surgery Services
+
+========================================
