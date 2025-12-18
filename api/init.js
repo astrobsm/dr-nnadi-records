@@ -1,9 +1,11 @@
-import { sql } from '@vercel/postgres';
+import { db } from '@vercel/postgres';
 
 export default async function handler(req, res) {
+  const client = await db.connect();
+  
   try {
     // Create patients table
-    await sql`
+    await client.sql`
       CREATE TABLE IF NOT EXISTS patients (
         folder_number VARCHAR(100) PRIMARY KEY,
         patient_name VARCHAR(255) NOT NULL,
@@ -13,7 +15,7 @@ export default async function handler(req, res) {
     `;
 
     // Create records table
-    await sql`
+    await client.sql`
       CREATE TABLE IF NOT EXISTS records (
         id BIGSERIAL PRIMARY KEY,
         patient_name VARCHAR(255) NOT NULL,
@@ -30,19 +32,21 @@ export default async function handler(req, res) {
     `;
 
     // Create indexes for better performance
-    await sql`
+    await client.sql`
       CREATE INDEX IF NOT EXISTS idx_records_date ON records(review_date DESC)
     `;
     
-    await sql`
+    await client.sql`
       CREATE INDEX IF NOT EXISTS idx_records_folder ON records(folder_number)
     `;
 
+    client.release();
     return res.status(200).json({ 
       success: true, 
       message: 'Database initialized successfully' 
     });
   } catch (error) {
+    client.release();
     console.error('Init error:', error);
     return res.status(500).json({ 
       success: false, 

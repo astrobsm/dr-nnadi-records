@@ -1,10 +1,12 @@
-import { sql } from '@vercel/postgres';
+import { db } from '@vercel/postgres';
 
 export default async function handler(req, res) {
+  const client = await db.connect();
+  
   try {
     // GET - Fetch all records
     if (req.method === 'GET') {
-      const { rows } = await sql`
+      const { rows } = await client.sql`
         SELECT 
           id,
           patient_name as "patientName",
@@ -19,6 +21,7 @@ export default async function handler(req, res) {
         FROM records
         ORDER BY review_date DESC, created_at DESC
       `;
+      client.release();
       return res.status(200).json({ success: true, records: rows });
     }
 
@@ -36,7 +39,7 @@ export default async function handler(req, res) {
       } = req.body;
 
       // First, ensure patient exists or create it
-      await sql`
+      await client.sql`
         INSERT INTO patients (folder_number, patient_name, first_visit)
         VALUES (${folderNumber}, ${patientName}, ${reviewDate})
         ON CONFLICT (folder_number) 
@@ -46,7 +49,7 @@ export default async function handler(req, res) {
       `;
 
       // Insert record
-      const { rows } = await sql`
+      const { rows } = await client.sql`
         INSERT INTO records 
           (patient_name, folder_number, review_date, hospital_name, 
            service_type, service_details, fee, notes)
@@ -66,6 +69,7 @@ export default async function handler(req, res) {
           created_at as "createdAt"
       `;
 
+      client.release();
       return res.status(201).json({ success: true, record: rows[0] });
     }
 
@@ -83,7 +87,7 @@ export default async function handler(req, res) {
         notes
       } = req.body;
 
-      const { rows } = await sql`
+      const { rows } = await client.sql`
         UPDATE records
         SET 
           patient_name = ${patientName},
@@ -109,9 +113,11 @@ export default async function handler(req, res) {
       `;
 
       if (rows.length === 0) {
+        client.release();
         return res.status(404).json({ success: false, error: 'Record not found' });
       }
 
+      client.release();
       return res.status(200).json({ success: true, record: rows[0] });
     }
 
@@ -120,15 +126,19 @@ export default async function handler(req, res) {
       const { id } = req.query;
 
       if (!id) {
+        client.release();
         return res.status(400).json({ success: false, error: 'ID required' });
       }
 
-      await sql`DELETE FROM records WHERE id = ${id}`;
+      await client.sql`DELETE FROM records WHERE id = ${id}`;
+      client.release();
       return res.status(200).json({ success: true, message: 'Record deleted' });
     }
 
+    client.release();
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   } catch (error) {
+    client.release();
     console.error('Records API error:', error);
     return res.status(500).json({ 
       success: false, 
