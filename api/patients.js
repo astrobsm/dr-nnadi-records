@@ -1,11 +1,6 @@
 import { sql } from '@vercel/postgres';
-import { createResponse } from './db.js';
 
-export default async function handler(req) {
-  if (req.method === 'OPTIONS') {
-    return createResponse({ success: true }, 200);
-  }
-
+export default async function handler(req, res) {
   try {
     // GET - Fetch all patients
     if (req.method === 'GET') {
@@ -25,15 +20,15 @@ export default async function handler(req) {
         patients[patient.folderNumber] = patient;
       });
       
-      return createResponse({ success: true, patients });
+      return res.status(200).json({ success: true, patients });
     }
 
-    return createResponse({ success: false, error: 'Method not allowed' }, 405);
+    return res.status(405).json({ success: false, error: 'Method not allowed' });
   } catch (error) {
     console.error('Patients API error:', error);
-    return createResponse({ 
+    return res.status(500).json({ 
       success: false, 
       error: error.message 
-    }, 500);
+    });
   }
 }

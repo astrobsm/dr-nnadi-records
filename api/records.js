@@ -1,11 +1,6 @@
 import { sql } from '@vercel/postgres';
-import { createResponse } from './db.js';
 
-export default async function handler(req) {
-  if (req.method === 'OPTIONS') {
-    return createResponse({ success: true }, 200);
-  }
-
+export default async function handler(req, res) {
   try {
     // GET - Fetch all records
     if (req.method === 'GET') {
@@ -24,12 +19,11 @@ export default async function handler(req) {
         FROM records
         ORDER BY review_date DESC, created_at DESC
       `;
-      return createResponse({ success: true, records: rows });
+      return res.status(200).json({ success: true, records: rows });
     }
 
     // POST - Create new record
     if (req.method === 'POST') {
-      const body = await req.json();
       const {
         patientName,
         folderNumber,
@@ -39,7 +33,7 @@ export default async function handler(req) {
         serviceDetails,
         fee,
         notes
-      } = body;
+      } = req.body;
 
       // First, ensure patient exists or create it
       await sql`
@@ -72,12 +66,11 @@ export default async function handler(req) {
           created_at as "createdAt"
       `;
 
-      return createResponse({ success: true, record: rows[0] }, 201);
+      return res.status(201).json({ success: true, record: rows[0] });
     }
 
     // PUT - Update record
     if (req.method === 'PUT') {
-      const body = await req.json();
       const {
         id,
         patientName,
@@ -88,7 +81,7 @@ export default async function handler(req) {
         serviceDetails,
         fee,
         notes
-      } = body;
+      } = req.body;
 
       const { rows } = await sql`
         UPDATE records
@@ -116,31 +109,30 @@ export default async function handler(req) {
       `;
 
       if (rows.length === 0) {
-        return createResponse({ success: false, error: 'Record not found' }, 404);
+        return res.status(404).json({ success: false, error: 'Record not found' });
       }
 
-      return createResponse({ success: true, record: rows[0] });
+      return res.status(200).json({ success: true, record: rows[0] });
     }
 
     // DELETE - Delete record
     if (req.method === 'DELETE') {
-      const url = new URL(req.url);
-      const id = url.searchParams.get('id');
+      const { id } = req.query;
 
       if (!id) {
-        return createResponse({ success: false, error: 'ID required' }, 400);
+        return res.status(400).json({ success: false, error: 'ID required' });
       }
 
       await sql`DELETE FROM records WHERE id = ${id}`;
-      return createResponse({ success: true, message: 'Record deleted' });
+      return res.status(200).json({ success: true, message: 'Record deleted' });
     }
 
-    return createResponse({ success: false, error: 'Method not allowed' }, 405);
+    return res.status(405).json({ success: false, error: 'Method not allowed' });
   } catch (error) {
     console.error('Records API error:', error);
-    return createResponse({ 
+    return res.status(500).json({ 
       success: false, 
       error: error.message 
-    }, 500);
+    });
   }
 }
