@@ -563,9 +563,15 @@ function showTab(tabName) {
 // Display all records
 function displayRecords() {
     const recordsList = document.getElementById('recordsList');
-    const filterDate = document.getElementById('filterDate').value;
-    const filterService = document.getElementById('filterService').value;
-    const filterHospital = document.getElementById('filterHospital').value;
+    if (!recordsList) return; // Guard against missing element
+    
+    const filterDateElem = document.getElementById('filterDate');
+    const filterServiceElem = document.getElementById('filterService');
+    const filterHospitalElem = document.getElementById('filterHospital');
+    
+    const filterDate = filterDateElem ? filterDateElem.value : '';
+    const filterService = filterServiceElem ? filterServiceElem.value : '';
+    const filterHospital = filterHospitalElem ? filterHospitalElem.value : '';
     
     let filteredRecords = records;
     
