@@ -16,3 +16,4 @@ node_modules/
 # Do NOT commit patient data
 patient-data.json
 records-backup.json
+.vercel

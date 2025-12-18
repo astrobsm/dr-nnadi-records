@@ -1,12 +1,16 @@
 // Test database connection
-const { sql } = require('@vercel/postgres');
+const { createPool } = require('@vercel/postgres');
 
 async function testConnection() {
     try {
         console.log('Testing database connection...');
         
+        const pool = createPool({
+            connectionString: process.env.POSTGRES_URL
+        });
+        
         // Test query
-        const result = await sql`SELECT version()`;
+        const result = await pool.query('SELECT version()');
         
         console.log('✓ Connected to database successfully!');
         console.log('PostgreSQL version:', result.rows[0].version);
@@ -14,17 +18,17 @@ async function testConnection() {
         // Test creating tables
         console.log('\nInitializing tables...');
         
-        await sql`
+        await pool.query(`
             CREATE TABLE IF NOT EXISTS patients (
                 folder_number VARCHAR(100) PRIMARY KEY,
                 patient_name VARCHAR(255) NOT NULL,
                 first_visit DATE NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-        `;
+        `);
         console.log('✓ Patients table ready');
         
-        await sql`
+        await pool.query(`
             CREATE TABLE IF NOT EXISTS records (
                 id BIGSERIAL PRIMARY KEY,
                 patient_name VARCHAR(255) NOT NULL,
@@ -38,16 +42,18 @@ async function testConnection() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (folder_number) REFERENCES patients(folder_number) ON DELETE CASCADE
             )
-        `;
+        `);
         console.log('✓ Records table ready');
         
-        await sql`
+        await pool.query(`
             CREATE INDEX IF NOT EXISTS idx_records_date ON records(review_date DESC)
-        `;
-        await sql`
+        `);
+        await pool.query(`
             CREATE INDEX IF NOT EXISTS idx_records_folder ON records(folder_number)
-        `;
+        `);
         console.log('✓ Indexes created');
+        
+        await pool.end();
         
         console.log('\n✓ Database is ready for use!');
         console.log('\nYou can now:');
