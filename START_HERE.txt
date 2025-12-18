@@ -1,0 +1,21 @@
+---
+🚀 **TO DEPLOY TO VERCEL WITH DATABASE - JUST DOUBLE-CLICK THIS FILE:**
+
+📁 `DEPLOY-ONE-CLICK.bat`
+
+That's it! The script will handle everything automatically.
+---
+
+✅ What happens automatically:
+  1. Installs Vercel CLI
+  2. Logs you into Vercel (opens browser)
+  3. Deploys your application to cloud
+  4. Guides you to create free PostgreSQL database
+  5. Initializes database tables
+  6. Opens your live application
+
+⏱️ Total time: ~5 minutes
+
+📖 For detailed instructions, see: AUTOMATED_DEPLOYMENT.md
+
+🎉 Your app will be live at: https://dr-nnadi-records.vercel.app
