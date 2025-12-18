@@ -2,17 +2,31 @@
 let records = [];
 let patients = {}; // Store unique patients by folder number
 let logoDataUrl = null;
+let isCloudEnabled = false;
 
-// Load records from localStorage on startup
-window.addEventListener('DOMContentLoaded', () => {
-    loadRecords();
-    loadPatients();
+// API Configuration
+const API_BASE = window.location.hostname === 'localhost' ? '' : '';
+const API_ENDPOINTS = {
+    records: `${API_BASE}/api/records`,
+    patients: `${API_BASE}/api/patients`,
+    backup: `${API_BASE}/api/backup`,
+    init: `${API_BASE}/api/init`
+};
+
+// Load records from cloud or localStorage on startup
+window.addEventListener('DOMContentLoaded', async () => {
+    showLoadingIndicator('Loading data...');
+    await checkCloudConnection();
+    await loadRecords();
+    await loadPatients();
     populatePatientDropdown();
     updateHospitalFilters();
     displayRecords();
     setDefaultDate();
     // Load logo after a short delay to ensure DOM is ready
     setTimeout(loadLogo, 100);
+    hideLoadingIndicator();
+    updateSyncStatus();
 });
 
 // Load logo and convert to base64
@@ -60,25 +74,195 @@ function setDefaultDate() {
     generateDailySummary();
 }
 
-// Load records from localStorage
-function loadRecords() {
-    const stored = localStorage.getItem('patientRecords');
-    if (stored) {
-        records = JSON.parse(stored);
+// Check if cloud database is available
+async function checkCloudConnection() {
+    try {
+        const response = await fetch(API_ENDPOINTS.patients, { 
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        isCloudEnabled = response.ok;
+        console.log(isCloudEnabled ? '✓ Cloud sync enabled' : '⚠ Using local storage only');
+        return isCloudEnabled;
+    } catch (error) {
+        console.warn('⚠ Cloud not available, using local storage');
+        isCloudEnabled = false;
+        return false;
     }
 }
 
-// Load patients database from localStorage
-function loadPatients() {
+// Load records from cloud or localStorage
+async function loadRecords() {
+    if (isCloudEnabled) {
+        try {
+            const response = await fetch(API_ENDPOINTS.records);
+            const data = await response.json();
+            if (data.success && data.records) {
+                records = data.records;
+                // Save to localStorage as backup
+                localStorage.setItem('patientRecords', JSON.stringify(records));
+                console.log(`✓ Loaded ${records.length} records from cloud`);
+                return;
+            }
+        } catch (error) {
+            console.error('Error loading from cloud:', error);
+        }
+    }
+    
+    // Fallback to localStorage
+    const stored = localStorage.getItem('patientRecords');
+    if (stored) {
+        records = JSON.parse(stored);
+        console.log(`✓ Loaded ${records.length} records from local storage`);
+    }
+}
+
+// Load patients database from cloud or localStorage
+async function loadPatients() {
+    if (isCloudEnabled) {
+        try {
+            const response = await fetch(API_ENDPOINTS.patients);
+            const data = await response.json();
+            if (data.success && data.patients) {
+                patients = data.patients;
+                // Save to localStorage as backup
+                localStorage.setItem('patientsDatabase', JSON.stringify(patients));
+                console.log(`✓ Loaded ${Object.keys(patients).length} patients from cloud`);
+                return;
+            }
+        } catch (error) {
+            console.error('Error loading patients from cloud:', error);
+        }
+    }
+    
+    // Fallback to localStorage
     const stored = localStorage.getItem('patientsDatabase');
     if (stored) {
         patients = JSON.parse(stored);
+        console.log(`✓ Loaded ${Object.keys(patients).length} patients from local storage`);
     }
+}
+
+// Save record to cloud and localStorage
+async function saveRecordToCloud(record) {
+    if (!isCloudEnabled) {
+        localStorage.setItem('patientRecords', JSON.stringify(records));
+        return true;
+    }
+    
+    try {
+        const response = await fetch(API_ENDPOINTS.records, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(record)
+        });
+        const data = await response.json();
+        if (data.success) {
+            console.log('✓ Record saved to cloud');
+            // Also save to localStorage as backup
+            localStorage.setItem('patientRecords', JSON.stringify(records));
+            return true;
+        }
+    } catch (error) {
+        console.error('Error saving to cloud:', error);
+        // Save to localStorage as fallback
+        localStorage.setItem('patientRecords', JSON.stringify(records));
+    }
+    return false;
+}
+
+// Update record in cloud
+async function updateRecordInCloud(record) {
+    if (!isCloudEnabled) {
+        localStorage.setItem('patientRecords', JSON.stringify(records));
+        return true;
+    }
+    
+    try {
+        const response = await fetch(API_ENDPOINTS.records, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(record)
+        });
+        const data = await response.json();
+        if (data.success) {
+            console.log('✓ Record updated in cloud');
+            localStorage.setItem('patientRecords', JSON.stringify(records));
+            return true;
+        }
+    } catch (error) {
+        console.error('Error updating in cloud:', error);
+        localStorage.setItem('patientRecords', JSON.stringify(records));
+    }
+    return false;
+}
+
+// Delete record from cloud
+async function deleteRecordFromCloud(id) {
+    if (!isCloudEnabled) {
+        return true;
+    }
+    
+    try {
+        const response = await fetch(`${API_ENDPOINTS.records}?id=${id}`, {
+            method: 'DELETE'
+        });
+        const data = await response.json();
+        if (data.success) {
+            console.log('✓ Record deleted from cloud');
+            return true;
+        }
+    } catch (error) {
+        console.error('Error deleting from cloud:', error);
+    }
+    return false;
 }
 
 // Save patients database to localStorage
 function savePatients() {
     localStorage.setItem('patientsDatabase', JSON.stringify(patients));
+}
+
+// Show loading indicator
+function showLoadingIndicator(message = 'Loading...') {
+    let loader = document.getElementById('loadingIndicator');
+    if (!loader) {
+        loader = document.createElement('div');
+        loader.id = 'loadingIndicator';
+        loader.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#2a5298;color:white;padding:20px 40px;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.3);z-index:10000;font-size:16px;';
+        document.body.appendChild(loader);
+    }
+    loader.textContent = message;
+    loader.style.display = 'block';
+}
+
+// Hide loading indicator
+function hideLoadingIndicator() {
+    const loader = document.getElementById('loadingIndicator');
+    if (loader) {
+        loader.style.display = 'none';
+    }
+}
+
+// Update sync status indicator
+function updateSyncStatus() {
+    let statusDiv = document.getElementById('syncStatus');
+    if (!statusDiv) {
+        statusDiv = document.createElement('div');
+        statusDiv.id = 'syncStatus';
+        statusDiv.style.cssText = 'position:fixed;bottom:20px;right:20px;padding:8px 16px;border-radius:20px;font-size:12px;font-weight:bold;z-index:1000;box-shadow:0 2px 10px rgba(0,0,0,0.2);';
+        document.body.appendChild(statusDiv);
+    }
+    
+    if (isCloudEnabled) {
+        statusDiv.textContent = '☁️ Cloud Sync Active';
+        statusDiv.style.background = '#28a745';
+        statusDiv.style.color = 'white';
+    } else {
+        statusDiv.textContent = '💾 Local Storage Only';
+        statusDiv.style.background = '#ffc107';
+        statusDiv.style.color = '#333';
+    }
 }
 
 // Populate patient filter dropdown in View Records tab
@@ -218,8 +402,10 @@ function handleHospitalChange() {
 }
 
 // Handle form submission
-document.getElementById('patientForm').addEventListener('submit', (e) => {
+document.getElementById('patientForm').addEventListener('submit', async (e) => {
     e.preventDefault();
+    
+    showLoadingIndicator('Saving record...');
     
     const patientName = document.getElementById('patientName').value.trim();
     const folderNumber = document.getElementById('folderNumber').value.trim();
@@ -272,14 +458,15 @@ document.getElementById('patientForm').addEventListener('submit', (e) => {
         const index = records.findIndex(r => r.id === editingRecordId);
         if (index !== -1) {
             records[index] = { ...record, id: editingRecordId };
+            await updateRecordInCloud({ ...record, id: editingRecordId });
         }
         editingRecordId = null;
         cancelEdit();
     } else {
         // Add new record
         records.push(record);
+        await saveRecordToCloud(record);
     }
-    saveRecords();
     
     // Add patient to patients database if not already exists
     if (!patients[folderNumber]) {
@@ -295,8 +482,10 @@ document.getElementById('patientForm').addEventListener('submit', (e) => {
     // Update hospital filters
     updateHospitalFilters();
     
+    hideLoadingIndicator();
+    
     // Show success message
-    showSuccessMessage(editingRecordId ? 'Record updated successfully!' : 'Record saved successfully!');
+    showSuccessMessage(editingRecordId ? 'Record updated and synced to cloud!' : 'Record saved and synced to cloud!');
     
     // Reset form
     resetForm();
@@ -457,10 +646,18 @@ function clearFilters() {
 }
 
 // Delete record
-function deleteRecord(id) {
+async function deleteRecord(id) {
     if (confirm('Are you sure you want to delete this record?')) {
+        showLoadingIndicator('Deleting record...');
+        
+        // Delete from cloud first
+        await deleteRecordFromCloud(id);
+        
+        // Then delete locally
         records = records.filter(r => r.id !== id);
-        saveRecords();
+        localStorage.setItem('patientRecords', JSON.stringify(records));
+        
+        hideLoadingIndicator();
         displayRecords();
         
         // Update daily summary if on that tab
@@ -468,6 +665,8 @@ function deleteRecord(id) {
         if (summaryDate) {
             generateDailySummary();
         }
+        
+        showSuccessMessage('Record deleted and synced to cloud!');
     }
 }
 
