@@ -22,12 +22,14 @@ Write-Host ""
 # Install Vercel CLI
 Write-Host "Installing Vercel CLI..." -ForegroundColor Cyan
 npm install -g vercel 2>$null
+# Refresh PATH
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
 Write-Host "OK: Vercel CLI ready" -ForegroundColor Green
 Write-Host ""
 
 # Login
 Write-Host "Logging in to Vercel..." -ForegroundColor Cyan
-vercel login
+npx vercel login
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Login failed" -ForegroundColor Red
     Read-Host "Press Enter to exit"
@@ -38,7 +40,7 @@ Write-Host ""
 
 # Deploy
 Write-Host "Deploying..." -ForegroundColor Cyan
-vercel --prod --yes --name dr-nnadi-records
+npx vercel --prod --yes --name dr-nnadi-records
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Deployment failed" -ForegroundColor Red
     Read-Host "Press Enter to exit"
