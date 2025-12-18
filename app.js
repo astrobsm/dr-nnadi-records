@@ -266,6 +266,21 @@ document.getElementById('patientForm').addEventListener('submit', (e) => {
         createdAt: new Date().toISOString()
     };
     
+    // Add or update record
+    if (editingRecordId) {
+        // Update existing record
+        const index = records.findIndex(r => r.id === editingRecordId);
+        if (index !== -1) {
+            records[index] = { ...record, id: editingRecordId };
+        }
+        editingRecordId = null;
+        cancelEdit();
+    } else {
+        // Add new record
+        records.push(record);
+    }
+    saveRecords();
+    
     // Add patient to patients database if not already exists
     if (!patients[folderNumber]) {
         patients[folderNumber] = {
@@ -281,7 +296,7 @@ document.getElementById('patientForm').addEventListener('submit', (e) => {
     updateHospitalFilters();
     
     // Show success message
-    showSuccessMessage('Record saved successfully!');
+    showSuccessMessage(editingRecordId ? 'Record updated successfully!' : 'Record saved successfully!');
     
     // Reset form
     resetForm();
@@ -378,6 +393,9 @@ function displayRecords() {
         filteredRecords = filteredRecords.filter(r => r.hospitalName === filterHospital);
     }
     
+    // Sort by date (most recent first)
+    filteredRecords = filteredRecords.sort((a, b) => new Date(b.reviewDate) - new Date(a.reviewDate));
+    
     if (filteredRecords.length === 0) {
         recordsList.innerHTML = `
             <div class="no-records">
@@ -470,6 +488,9 @@ function generateDailySummary() {
     if (summaryHospital) {
         dailyRecords = dailyRecords.filter(r => r.hospitalName === summaryHospital);
     }
+    
+    // Sort by patient name
+    dailyRecords = dailyRecords.sort((a, b) => a.patientName.localeCompare(b.patientName));
     
     if (dailyRecords.length === 0) {
         dailySummary.innerHTML = '<div class="no-records"><p>No records found for this date' + (summaryHospital ? ' and hospital' : '') + '.</p></div>';
@@ -672,75 +693,90 @@ async function exportDailyReport() {
         doc.text('Fee (N)', pageWidth - 20, yPos, { align: 'right' });
         yPos += 8;
         
-        // Table rows
-        doc.setFont(undefined, 'normal');
-        doc.setTextColor(0, 0, 0);
+        // Sort records by date
+        dailyRecords = dailyRecords.sort((a, b) => new Date(a.reviewDate) - new Date(b.reviewDate));
         
-        dailyRecords.forEach((record, index) => {
-            if (yPos > pageHeight - 30) {
-                doc.addPage();
-                yPos = 20;
-                
-                // Repeat header on new page
-                doc.setFont(undefined, 'bold');
-                doc.setFillColor(42, 82, 152);
-                doc.setTextColor(255, 255, 255);
-                doc.rect(15, yPos - 5, pageWidth - 30, 8, 'F');
-                doc.setFontSize(9);
-                doc.text('Patient Name', 20, yPos);
-                doc.text('Folder', 70, yPos);
-                if (!summaryHospital) {
-                    doc.text('Hospital', 95, yPos);
-                    doc.text('Service', 130, yPos);
-                } else {
-                    doc.text('Service', 100, yPos);
-                }
-                doc.text('Fee (N)', pageWidth - 20, yPos, { align: 'right' });
-                yPos += 8;
-                doc.setFont(undefined, 'normal');
-                doc.setTextColor(0, 0, 0);
-            }
-            
-            // Alternate row colors
-            if (index % 2 === 0) {
-                doc.setFillColor(248, 249, 250);
-                doc.rect(15, yPos - 5, pageWidth - 30, 7, 'F');
-            }
-            
-            doc.setFontSize(9);
-            // Truncate text to fit
-            const patientName = record.patientName.length > 18 ? record.patientName.substring(0, 18) + '...' : record.patientName;
-            const folderNum = record.folderNumber.length > 10 ? record.folderNumber.substring(0, 10) : record.folderNumber;
-            
-            doc.text(patientName, 20, yPos);
-            doc.text(folderNum, 70, yPos);
-            
+        // Prepare table data
+        const tableData = dailyRecords.map(record => {
+            const row = [
+                record.patientName,
+                record.folderNumber
+            ];
             if (!summaryHospital) {
-                const hospitalShort = record.hospitalName.length > 15 ? record.hospitalName.substring(0, 15) + '...' : record.hospitalName;
-                doc.text(hospitalShort, 95, yPos);
-                const service = record.serviceDetails.length > 20 ? record.serviceDetails.substring(0, 20) + '...' : record.serviceDetails;
-                doc.text(service, 130, yPos);
-            } else {
-                const service = record.serviceDetails.length > 25 ? record.serviceDetails.substring(0, 25) + '...' : record.serviceDetails;
-                doc.text(service, 100, yPos);
+                row.push(record.hospitalName);
             }
-            
-            // Format fee properly
-            const feeText = 'N' + record.fee.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-            doc.text(feeText, pageWidth - 20, yPos, { align: 'right' });
-            yPos += 7;
+            row.push(record.serviceDetails);
+            row.push('N' + record.fee.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+            return row;
         });
         
+        // Table headers
+        const tableHeaders = ['Patient Name', 'Folder No.'];
+        if (!summaryHospital) {
+            tableHeaders.push('Hospital');
+        }
+        tableHeaders.push('Service');
+        tableHeaders.push('Fee (N)');
+        
+        // Use autoTable for better layout
+        doc.autoTable({
+            head: [tableHeaders],
+            body: tableData,
+            startY: yPos,
+            theme: 'striped',
+            headStyles: {
+                fillColor: [42, 82, 152],
+                textColor: 255,
+                fontStyle: 'bold',
+                fontSize: 9
+            },
+            bodyStyles: {
+                fontSize: 8,
+                cellPadding: 3
+            },
+            alternateRowStyles: {
+                fillColor: [248, 249, 250]
+            },
+            columnStyles: {
+                0: { cellWidth: summaryHospital ? 50 : 40 },
+                1: { cellWidth: summaryHospital ? 35 : 30 },
+                2: { cellWidth: summaryHospital ? 60 : 35 },
+                3: { cellWidth: summaryHospital ? 'auto' : 45 },
+                4: { cellWidth: summaryHospital ? 'auto' : 35, halign: 'right' }
+            },
+            styles: {
+                overflow: 'linebreak',
+                cellWidth: 'wrap'
+            },
+            margin: { left: 15, right: 15 },
+            didDrawPage: function(data) {
+                // Footer on each page
+                doc.setTextColor(100, 100, 100);
+                doc.setFont(undefined, 'normal');
+                doc.setFontSize(8);
+                const footerText = 'Generated on ' + new Date().toLocaleString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                doc.text(footerText, pageWidth / 2, pageHeight - 10, { align: 'center' });
+            }
+        });
+        
+        // Get final Y position after table
+        yPos = doc.lastAutoTable.finalY + 5;
+        
         // Total row
-        yPos += 3;
         doc.setFont(undefined, 'bold');
         doc.setFillColor(42, 82, 152);
         doc.setTextColor(255, 255, 255);
-        doc.rect(15, yPos - 5, pageWidth - 30, 8, 'F');
+        doc.rect(15, yPos, pageWidth - 30, 8, 'F');
         doc.setFontSize(10);
-        doc.text('TOTAL', summaryHospital ? 100 : 130, yPos);
+        doc.text('TOTAL', 20, yPos + 5);
         const totalText = 'N' + totalRevenue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-        doc.text(totalText, pageWidth - 20, yPos, { align: 'right' });
+        doc.text(totalText, pageWidth - 20, yPos + 5, { align: 'right' });
         
         // Footer
         doc.setTextColor(100, 100, 100);
@@ -1220,78 +1256,90 @@ async function exportDateRangeReport() {
         doc.text('Fee (N)', pageWidth - 20, yPos, { align: 'right' });
         yPos += 8;
 
-        // Table rows
-        doc.setFont(undefined, 'normal');
-        doc.setTextColor(0, 0, 0);
-
-        filteredRecords.forEach((record, index) => {
-            if (yPos > pageHeight - 30) {
-                doc.addPage();
-                yPos = 20;
-
-                // Repeat header on new page
-                doc.setFont(undefined, 'bold');
-                doc.setFillColor(42, 82, 152);
-                doc.setTextColor(255, 255, 255);
-                doc.rect(15, yPos - 5, pageWidth - 30, 8, 'F');
-                doc.setFontSize(9);
-                doc.text('Date', 20, yPos);
-                doc.text('Patient', 45, yPos);
-                doc.text('Folder', 85, yPos);
-                if (!filterHospital) {
-                    doc.text('Hospital', 105, yPos);
-                }
-                doc.text('Service', filterHospital ? 105 : 135, yPos);
-                doc.text('Fee (N)', pageWidth - 20, yPos, { align: 'right' });
-                yPos += 8;
-                doc.setFont(undefined, 'normal');
-                doc.setTextColor(0, 0, 0);
-            }
-
-            // Alternate row colors
-            if (index % 2 === 0) {
-                doc.setFillColor(248, 249, 250);
-                doc.rect(15, yPos - 5, pageWidth - 30, 7, 'F');
-            }
-
-            doc.setFontSize(8);
-            
-            // Format date
-            const dateFormatted = new Date(record.reviewDate).toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
-            doc.text(dateFormatted, 20, yPos);
-            
-            // Truncate text to fit
-            const patientName = record.patientName.length > 15 ? record.patientName.substring(0, 15) + '...' : record.patientName;
-            doc.text(patientName, 45, yPos);
-            
-            const folderNum = record.folderNumber.length > 8 ? record.folderNumber.substring(0, 8) : record.folderNumber;
-            doc.text(folderNum, 85, yPos);
-
+        // Prepare table data
+        const tableData = filteredRecords.map(record => {
+            const dateFormatted = new Date(record.reviewDate).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'});
+            const row = [
+                dateFormatted,
+                record.patientName,
+                record.folderNumber
+            ];
             if (!filterHospital) {
-                const hospitalShort = record.hospitalName.length > 12 ? record.hospitalName.substring(0, 12) + '...' : record.hospitalName;
-                doc.text(hospitalShort, 105, yPos);
-                const service = record.serviceDetails.length > 18 ? record.serviceDetails.substring(0, 18) + '...' : record.serviceDetails;
-                doc.text(service, 135, yPos);
-            } else {
-                const service = record.serviceDetails.length > 25 ? record.serviceDetails.substring(0, 25) + '...' : record.serviceDetails;
-                doc.text(service, 105, yPos);
+                row.push(record.hospitalName);
             }
-
-            const feeText = 'N' + record.fee.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-            doc.text(feeText, pageWidth - 20, yPos, { align: 'right' });
-            yPos += 7;
+            row.push(record.serviceDetails);
+            row.push('N' + record.fee.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+            return row;
         });
-
+        
+        // Table headers
+        const tableHeaders = ['Date', 'Patient', 'Folder'];
+        if (!filterHospital) {
+            tableHeaders.push('Hospital');
+        }
+        tableHeaders.push('Service');
+        tableHeaders.push('Fee (N)');
+        
+        // Use autoTable for better layout
+        doc.autoTable({
+            head: [tableHeaders],
+            body: tableData,
+            startY: yPos,
+            theme: 'striped',
+            headStyles: {
+                fillColor: [42, 82, 152],
+                textColor: 255,
+                fontStyle: 'bold',
+                fontSize: 9
+            },
+            bodyStyles: {
+                fontSize: 8,
+                cellPadding: 2.5
+            },
+            alternateRowStyles: {
+                fillColor: [248, 249, 250]
+            },
+            columnStyles: {
+                0: { cellWidth: 22 },
+                1: { cellWidth: filterHospital ? 40 : 35 },
+                2: { cellWidth: 25 },
+                3: { cellWidth: filterHospital ? 60 : 30 },
+                4: { cellWidth: filterHospital ? 'auto' : 40 },
+                5: { cellWidth: filterHospital ? 'auto' : 30, halign: 'right' }
+            },
+            styles: {
+                overflow: 'linebreak',
+                cellWidth: 'wrap'
+            },
+            margin: { left: 15, right: 15 },
+            didDrawPage: function(data) {
+                // Footer on each page
+                doc.setTextColor(100, 100, 100);
+                doc.setFont(undefined, 'normal');
+                doc.setFontSize(8);
+                const footerText = 'Generated on ' + new Date().toLocaleString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                doc.text(footerText, pageWidth / 2, pageHeight - 10, { align: 'center' });
+            }
+        });
+        
+        // Get final Y position after table
+        yPos = doc.lastAutoTable.finalY + 5;
+        
         // Total row
-        yPos += 3;
         doc.setFont(undefined, 'bold');
         doc.setFillColor(42, 82, 152);
         doc.setTextColor(255, 255, 255);
-        doc.rect(15, yPos - 5, pageWidth - 30, 8, 'F');
+        doc.rect(15, yPos, pageWidth - 30, 8, 'F');
         doc.setFontSize(10);
-        doc.text('TOTAL', filterHospital ? 105 : 135, yPos);
+        doc.text('TOTAL', 20, yPos + 5);
         const totalText = 'N' + totalRevenue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-        doc.text(totalText, pageWidth - 20, yPos, { align: 'right' });
+        doc.text(totalText, pageWidth - 20, yPos + 5, { align: 'right' });
 
         // Service breakdown section
         if (yPos < pageHeight - 60) {
