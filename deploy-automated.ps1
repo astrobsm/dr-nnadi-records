@@ -15,17 +15,17 @@ function Test-Command($cmdname) {
 
 # Function to print success message
 function Write-Success($message) {
-    Write-Host "✓ $message" -ForegroundColor Green
+    Write-Host "[OK] $message" -ForegroundColor Green
 }
 
 # Function to print error message
 function Write-Error-Custom($message) {
-    Write-Host "✗ $message" -ForegroundColor Red
+    Write-Host "[ERROR] $message" -ForegroundColor Red
 }
 
 # Function to print info message
 function Write-Info($message) {
-    Write-Host "→ $message" -ForegroundColor Yellow
+    Write-Host "[INFO] $message" -ForegroundColor Yellow
 }
 
 # Step 1: Check for Node.js
