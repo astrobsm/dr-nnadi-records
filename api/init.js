@@ -5,17 +5,17 @@ export default async function handler(req, res) {
   
   try {
     // Create patients table
-    await client.sql`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS patients (
         folder_number VARCHAR(100) PRIMARY KEY,
         patient_name VARCHAR(255) NOT NULL,
         first_visit DATE NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
-    `;
+    `);
 
     // Create records table
-    await client.sql`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS records (
         id BIGSERIAL PRIMARY KEY,
         patient_name VARCHAR(255) NOT NULL,
@@ -29,16 +29,16 @@ export default async function handler(req, res) {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (folder_number) REFERENCES patients(folder_number) ON DELETE CASCADE
       )
-    `;
+    `);
 
     // Create indexes for better performance
-    await client.sql`
+    await client.query(`
       CREATE INDEX IF NOT EXISTS idx_records_date ON records(review_date DESC)
-    `;
+    `);
     
-    await client.sql`
+    await client.query(`
       CREATE INDEX IF NOT EXISTS idx_records_folder ON records(folder_number)
-    `;
+    `);
 
     client.release();
     return res.status(200).json({ 

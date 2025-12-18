@@ -6,7 +6,7 @@ export default async function handler(req, res) {
   try {
     // GET - Fetch all records
     if (req.method === 'GET') {
-      const { rows } = await client.sql`
+      const { rows } = await client.query(`
         SELECT 
           id,
           patient_name as "patientName",
@@ -20,7 +20,7 @@ export default async function handler(req, res) {
           created_at as "createdAt"
         FROM records
         ORDER BY review_date DESC, created_at DESC
-      `;
+      `);
       client.release();
       return res.status(200).json({ success: true, records: rows });
     }
@@ -39,23 +39,22 @@ export default async function handler(req, res) {
       } = req.body;
 
       // First, ensure patient exists or create it
-      await client.sql`
+      await client.query(`
         INSERT INTO patients (folder_number, patient_name, first_visit)
-        VALUES (${folderNumber}, ${patientName}, ${reviewDate})
+        VALUES ($1, $2, $3)
         ON CONFLICT (folder_number) 
         DO UPDATE SET 
           patient_name = EXCLUDED.patient_name,
           first_visit = LEAST(patients.first_visit, EXCLUDED.first_visit)
-      `;
+      `, [folderNumber, patientName, reviewDate]);
 
       // Insert record
-      const { rows } = await client.sql`
+      const { rows } = await client.query(`
         INSERT INTO records 
           (patient_name, folder_number, review_date, hospital_name, 
            service_type, service_details, fee, notes)
         VALUES 
-          (${patientName}, ${folderNumber}, ${reviewDate}, ${hospitalName},
-           ${serviceType}, ${serviceDetails}, ${fee}, ${notes || ''})
+          ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING 
           id,
           patient_name as "patientName",
@@ -67,7 +66,7 @@ export default async function handler(req, res) {
           fee,
           notes,
           created_at as "createdAt"
-      `;
+      `, [patientName, folderNumber, reviewDate, hospitalName, serviceType, serviceDetails, fee, notes || '']);
 
       client.release();
       return res.status(201).json({ success: true, record: rows[0] });
@@ -87,18 +86,18 @@ export default async function handler(req, res) {
         notes
       } = req.body;
 
-      const { rows } = await client.sql`
+      const { rows } = await client.query(`
         UPDATE records
         SET 
-          patient_name = ${patientName},
-          folder_number = ${folderNumber},
-          review_date = ${reviewDate},
-          hospital_name = ${hospitalName},
-          service_type = ${serviceType},
-          service_details = ${serviceDetails},
-          fee = ${fee},
-          notes = ${notes || ''}
-        WHERE id = ${id}
+          patient_name = $1,
+          folder_number = $2,
+          review_date = $3,
+          hospital_name = $4,
+          service_type = $5,
+          service_details = $6,
+          fee = $7,
+          notes = $8
+        WHERE id = $9
         RETURNING 
           id,
           patient_name as "patientName",
@@ -110,7 +109,7 @@ export default async function handler(req, res) {
           fee,
           notes,
           created_at as "createdAt"
-      `;
+      `, [patientName, folderNumber, reviewDate, hospitalName, serviceType, serviceDetails, fee, notes || '', id]);
 
       if (rows.length === 0) {
         client.release();
@@ -130,7 +129,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, error: 'ID required' });
       }
 
-      await client.sql`DELETE FROM records WHERE id = ${id}`;
+      await client.query('DELETE FROM records WHERE id = $1', [id]);
       client.release();
       return res.status(200).json({ success: true, message: 'Record deleted' });
     }

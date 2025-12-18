@@ -6,7 +6,7 @@ export default async function handler(req, res) {
   try {
     // GET - Fetch all patients
     if (req.method === 'GET') {
-      const { rows } = await client.sql`
+      const { rows } = await client.query(`
         SELECT 
           folder_number as "folderNumber",
           patient_name as "patientName",
@@ -14,7 +14,7 @@ export default async function handler(req, res) {
           created_at as "createdAt"
         FROM patients
         ORDER BY patient_name ASC
-      `;
+      `);
       
       // Convert to object format for compatibility
       const patients = {};
