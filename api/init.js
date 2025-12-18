@@ -1,9 +1,10 @@
 import { sql } from '@vercel/postgres';
 
 export default async function handler(req, res) {
+  const query = sql(process.env.POSTGRES_PRISMA_URL || process.env.DATABASE_URL);
   try {
     // Create patients table
-    await sql`
+    await query`
       CREATE TABLE IF NOT EXISTS patients (
         folder_number VARCHAR(100) PRIMARY KEY,
         patient_name VARCHAR(255) NOT NULL,
@@ -13,7 +14,7 @@ export default async function handler(req, res) {
     `;
 
     // Create records table
-    await sql`
+    await query`
       CREATE TABLE IF NOT EXISTS records (
         id BIGSERIAL PRIMARY KEY,
         patient_name VARCHAR(255) NOT NULL,
@@ -30,11 +31,11 @@ export default async function handler(req, res) {
     `;
 
     // Create indexes for better performance
-    await sql`
+    await query`
       CREATE INDEX IF NOT EXISTS idx_records_date ON records(review_date DESC)
     `;
     
-    await sql`
+    await query`
       CREATE INDEX IF NOT EXISTS idx_records_folder ON records(folder_number)
     `;
 

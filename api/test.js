@@ -2,7 +2,7 @@ import { sql } from '@vercel/postgres';
 
 export default async function handler(req, res) {
   try {
-    const result = await sql`SELECT NOW() as current_time`;
+    const result = await sql(process.env.POSTGRES_PRISMA_URL || process.env.DATABASE_URL)`SELECT NOW() as current_time`;
     
     return res.status(200).json({ 
       success: true, 
