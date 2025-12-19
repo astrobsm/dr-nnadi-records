@@ -543,3 +543,52 @@ body {
 .success-message.show {
     display: block;
 }
+/* Complete Records Container */
+.complete-records-container {
+    max-height: 600px;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.complete-record-card {
+    page-break-inside: avoid;
+    break-inside: avoid;
+}
+
+.complete-record-card:hover {
+    box-shadow: 0 3px 10px rgba(0,0,0,0.15) !important;
+    transform: translateY(-2px);
+    transition: all 0.3s ease;
+}
+
+/* Scrollbar styling for complete records */
+.complete-records-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.complete-records-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.complete-records-container::-webkit-scrollbar-thumb {
+    background: #2a5298;
+    border-radius: 10px;
+}
+
+.complete-records-container::-webkit-scrollbar-thumb:hover {
+    background: #1e3c72;
+}
+
+/* Print styles for complete records */
+@media print {
+    .complete-record-card {
+        page-break-inside: avoid;
+        margin-bottom: 20px;
+        border: 1px solid #000 !important;
+    }
+    
+    .tabs, .btn, #installBanner {
+        display: none !important;
+    }
+}

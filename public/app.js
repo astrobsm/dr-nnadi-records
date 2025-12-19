@@ -648,6 +648,7 @@ function showTab(tabName) {
     const tabMap = {
         'record': 'recordTab',
         'view': 'viewTab',
+        'complete': 'completeTab',
         'daily': 'dailyTab',
         'data': 'dataTab'
     };
@@ -660,6 +661,8 @@ function showTab(tabName) {
     // Refresh data if viewing records or daily summary
     if (tabName === 'view') {
         displayRecords();
+    } else if (tabName === 'complete') {
+        loadCompleteRecords();
     } else if (tabName === 'daily') {
         generateDailySummary();
     } else if (tabName === 'data') {
@@ -1961,5 +1964,296 @@ window.manualSync = async function() {
         await syncLocalDataToCloud();
     }
 };
+
+// Load Complete Records
+function loadCompleteRecords() {
+    const sortBy = document.getElementById('completeRecordsSort')?.value || 'date-desc';
+    const filterHospital = document.getElementById('completeRecordsFilter')?.value || '';
+    
+    let filteredRecords = [...records];
+    
+    // Filter by hospital
+    if (filterHospital) {
+        filteredRecords = filteredRecords.filter(r => r.hospitalName === filterHospital);
+    }
+    
+    // Sort records
+    filteredRecords.sort((a, b) => {
+        switch(sortBy) {
+            case 'date-desc':
+                return new Date(b.reviewDate) - new Date(a.reviewDate);
+            case 'date-asc':
+                return new Date(a.reviewDate) - new Date(b.reviewDate);
+            case 'patient':
+                return a.patientName.localeCompare(b.patientName);
+            case 'folder':
+                return a.folderNumber.localeCompare(b.folderNumber);
+            default:
+                return new Date(b.reviewDate) - new Date(a.reviewDate);
+        }
+    });
+    
+    // Populate hospital filter if not already populated
+    const filterSelect = document.getElementById('completeRecordsFilter');
+    if (filterSelect && filterSelect.options.length === 1) {
+        const hospitals = [...new Set(records.map(r => r.hospitalName))].sort();
+        hospitals.forEach(hospital => {
+            const option = document.createElement('option');
+            option.value = hospital;
+            option.textContent = hospital;
+            filterSelect.appendChild(option);
+        });
+    }
+    
+    displayCompleteRecords(filteredRecords);
+}
+
+// Display Complete Records
+function displayCompleteRecords(recordsToDisplay) {
+    const container = document.getElementById('completeRecordsDisplay');
+    if (!container) return;
+    
+    if (recordsToDisplay.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: #6c757d; padding: 40px;">No records found</p>';
+        return;
+    }
+    
+    let html = `
+        <div style="margin-bottom: 15px; color: #6c757d;">
+            Showing ${recordsToDisplay.length} record${recordsToDisplay.length !== 1 ? 's' : ''}
+        </div>
+    `;
+    
+    recordsToDisplay.forEach((record, index) => {
+        const formattedDate = new Date(record.reviewDate).toLocaleDateString('en-GB', { 
+            day: 'numeric', 
+            month: 'long', 
+            year: 'numeric' 
+        });
+        
+        html += `
+            <div class="complete-record-card" style="border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin-bottom: 15px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px; border-bottom: 2px solid #2a5298; padding-bottom: 10px;">
+                    <div>
+                        <h4 style="margin: 0 0 5px 0; color: #2a5298; font-size: 1.2em;">${record.patientName}</h4>
+                        <p style="margin: 0; color: #6c757d; font-size: 0.95em;">Folder No: ${record.folderNumber}</p>
+                    </div>
+                    <div style="text-align: right;">
+                        <p style="margin: 0; font-weight: 600; color: #2a5298;">${formattedDate}</p>
+                        <p style="margin: 5px 0 0 0; color: #6c757d; font-size: 0.9em;">Record #${index + 1}</p>
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                    <div>
+                        <p style="margin: 0 0 3px 0; color: #6c757d; font-size: 0.9em; font-weight: 600;">Hospital</p>
+                        <p style="margin: 0; font-size: 1em;">${record.hospitalName}</p>
+                    </div>
+                    <div>
+                        <p style="margin: 0 0 3px 0; color: #6c757d; font-size: 0.9em; font-weight: 600;">Service Type</p>
+                        <p style="margin: 0; font-size: 1em;">${record.serviceType}</p>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <p style="margin: 0 0 5px 0; color: #6c757d; font-size: 0.9em; font-weight: 600;">Service Details</p>
+                    <p style="margin: 0; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word;">${record.serviceDetails}</p>
+                </div>
+                
+                ${record.notes ? `
+                    <div style="margin-bottom: 15px; background: #f8f9fa; padding: 12px; border-radius: 5px;">
+                        <p style="margin: 0 0 5px 0; color: #6c757d; font-size: 0.9em; font-weight: 600;">Notes</p>
+                        <p style="margin: 0; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word;">${record.notes}</p>
+                    </div>
+                ` : ''}
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid #dee2e6;">
+                    <p style="margin: 0; font-weight: 600; color: #28a745; font-size: 1.1em;">Fee: ₦${parseFloat(record.fee).toLocaleString()}</p>
+                    <p style="margin: 0; color: #6c757d; font-size: 0.85em;">Added: ${new Date(record.createdAt || record.reviewDate).toLocaleDateString()}</p>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+// Export Complete Records to PDF
+async function exportCompleteRecordsToPDF() {
+    const sortBy = document.getElementById('completeRecordsSort')?.value || 'date-desc';
+    const filterHospital = document.getElementById('completeRecordsFilter')?.value || '';
+    
+    let recordsToExport = [...records];
+    
+    // Filter by hospital
+    if (filterHospital) {
+        recordsToExport = recordsToExport.filter(r => r.hospitalName === filterHospital);
+    }
+    
+    // Sort records
+    recordsToExport.sort((a, b) => {
+        switch(sortBy) {
+            case 'date-desc':
+                return new Date(b.reviewDate) - new Date(a.reviewDate);
+            case 'date-asc':
+                return new Date(a.reviewDate) - new Date(b.reviewDate);
+            case 'patient':
+                return a.patientName.localeCompare(b.patientName);
+            case 'folder':
+                return a.folderNumber.localeCompare(b.folderNumber);
+            default:
+                return new Date(b.reviewDate) - new Date(a.reviewDate);
+        }
+    });
+    
+    if (recordsToExport.length === 0) {
+        alert('No records to export');
+        return;
+    }
+    
+    showLoadingIndicator('Generating PDF...');
+    
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'mm', 'a4');
+        
+        // Add header
+        doc.setFontSize(16);
+        doc.setFont(undefined, 'bold');
+        doc.text("Dr Nnadi's Patient Records", 105, 15, { align: 'center' });
+        
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'normal');
+        doc.text("Niger Foundation Hospital Enugu", 105, 22, { align: 'center' });
+        doc.text("Burns Plastic and Reconstructive Surgery Services", 105, 28, { align: 'center' });
+        
+        doc.setFontSize(10);
+        doc.text(`Generated: ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`, 105, 34, { align: 'center' });
+        
+        if (filterHospital) {
+            doc.text(`Filtered by Hospital: ${filterHospital}`, 105, 40, { align: 'center' });
+        }
+        
+        let yPos = filterHospital ? 48 : 42;
+        
+        // Add each record
+        recordsToExport.forEach((record, index) => {
+            // Check if we need a new page
+            if (yPos > 250) {
+                doc.addPage();
+                yPos = 20;
+            }
+            
+            // Record header
+            doc.setFillColor(42, 82, 152);
+            doc.rect(10, yPos, 190, 8, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(11);
+            doc.setFont(undefined, 'bold');
+            doc.text(`Record #${index + 1}: ${record.patientName}`, 12, yPos + 5.5);
+            
+            yPos += 10;
+            
+            // Record details
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(9);
+            doc.setFont(undefined, 'normal');
+            
+            const formattedDate = new Date(record.reviewDate).toLocaleDateString('en-GB', { 
+                day: 'numeric', 
+                month: 'long', 
+                year: 'numeric' 
+            });
+            
+            // Left column
+            doc.setFont(undefined, 'bold');
+            doc.text('Folder Number:', 12, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(record.folderNumber, 50, yPos);
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('Review Date:', 120, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.text(formattedDate, 150, yPos);
+            
+            yPos += 6;
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('Hospital:', 12, yPos);
+            doc.setFont(undefined, 'normal');
+            const hospitalLines = doc.splitTextToSize(record.hospitalName, 85);
+            doc.text(hospitalLines, 50, yPos);
+            yPos += (hospitalLines.length * 5);
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('Service Type:', 12, yPos);
+            doc.setFont(undefined, 'normal');
+            const serviceTypeLines = doc.splitTextToSize(record.serviceType, 85);
+            doc.text(serviceTypeLines, 50, yPos);
+            yPos += (serviceTypeLines.length * 5);
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('Service Details:', 12, yPos);
+            doc.setFont(undefined, 'normal');
+            const detailsLines = doc.splitTextToSize(record.serviceDetails, 175);
+            doc.text(detailsLines, 12, yPos + 5);
+            yPos += (detailsLines.length * 5) + 5;
+            
+            if (record.notes) {
+                // Check if notes section needs new page
+                const notesLines = doc.splitTextToSize(record.notes, 175);
+                if (yPos + (notesLines.length * 5) > 270) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                
+                doc.setFont(undefined, 'bold');
+                doc.text('Notes:', 12, yPos);
+                doc.setFont(undefined, 'normal');
+                doc.text(notesLines, 12, yPos + 5);
+                yPos += (notesLines.length * 5) + 5;
+            }
+            
+            doc.setFont(undefined, 'bold');
+            doc.text('Fee:', 12, yPos);
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(40, 167, 69);
+            doc.text(`₦${parseFloat(record.fee).toLocaleString()}`, 50, yPos);
+            doc.setTextColor(0, 0, 0);
+            
+            yPos += 8;
+            
+            // Separator line
+            doc.setDrawColor(200, 200, 200);
+            doc.line(10, yPos, 200, yPos);
+            yPos += 6;
+        });
+        
+        // Add footer with page numbers
+        const pageCount = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.setTextColor(128, 128, 128);
+            doc.text(`Page ${i} of ${pageCount}`, 105, 290, { align: 'center' });
+            doc.text(`${recordsToExport.length} Total Records`, 190, 290, { align: 'right' });
+        }
+        
+        // Save the PDF
+        const filename = `Dr_Nnadi_Records_${new Date().toISOString().split('T')[0]}.pdf`;
+        doc.save(filename);
+        
+        hideLoadingIndicator();
+        alert(`PDF exported successfully!\n\n${recordsToExport.length} records exported to ${filename}`);
+    } catch (error) {
+        console.error('PDF export error:', error);
+        hideLoadingIndicator();
+        alert('Error generating PDF. Please try again.');
+    }
+}
+
+window.loadCompleteRecords = loadCompleteRecords;
+window.exportCompleteRecordsToPDF = exportCompleteRecordsToPDF;
+
 
 

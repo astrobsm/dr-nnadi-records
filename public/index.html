@@ -14,6 +14,8 @@
     <link rel="icon" type="image/png" href="logo.png">
     <title>Dr Nnadi's Surgeries, Reviews and Procedures</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -41,6 +43,7 @@
         <div class="tabs">
             <button class="tab-button active" onclick="showTab('record')">New Record</button>
             <button class="tab-button" onclick="showTab('view')">View Records</button>
+            <button class="tab-button" onclick="showTab('complete')">Complete Records</button>
             <button class="tab-button" onclick="showTab('daily')">Daily Summary</button>
             <button class="tab-button" onclick="showTab('data')">Data Backup</button>
         </div>
@@ -188,6 +191,39 @@
                     </div>
                 </div>
                 <div id="recordsList" class="records-list"></div>
+            </div>
+        </div>
+
+        <!-- Complete Records Tab -->
+        <div id="completeTab" class="tab-content">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3>Complete Patient Records</h3>
+                    <button class="btn btn-primary" onclick="exportCompleteRecordsToPDF()" style="margin: 0;">
+                        📄 Export to PDF
+                    </button>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label for="completeRecordsSort">Sort By</label>
+                    <select id="completeRecordsSort" onchange="loadCompleteRecords()">
+                        <option value="date-desc">Date (Newest First)</option>
+                        <option value="date-asc">Date (Oldest First)</option>
+                        <option value="patient">Patient Name</option>
+                        <option value="folder">Folder Number</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label for="completeRecordsFilter">Filter by Hospital</label>
+                    <select id="completeRecordsFilter" onchange="loadCompleteRecords()">
+                        <option value="">All Hospitals</option>
+                    </select>
+                </div>
+                
+                <div id="completeRecordsDisplay" class="complete-records-container">
+                    <!-- Records will be loaded here -->
+                </div>
             </div>
         </div>
 
