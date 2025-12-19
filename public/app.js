@@ -4,11 +4,11 @@ let patients = {}; // Store unique patients by folder number
 let logoDataUrl = null;
 let isCloudEnabled = false;
 
-// API Configuration
+// API Configuration - Using Prisma for cloud sync
 const API_BASE = window.location.hostname === 'localhost' ? '' : '';
 const API_ENDPOINTS = {
-    records: `${API_BASE}/api/records`,
-    patients: `${API_BASE}/api/patients`,
+    records: `${API_BASE}/api/prisma-records`,
+    patients: `${API_BASE}/api/prisma-patients`,
     backup: `${API_BASE}/api/backup`,
     init: `${API_BASE}/api/init`
 };
@@ -19,6 +19,12 @@ window.addEventListener('DOMContentLoaded', async () => {
     await checkCloudConnection();
     await loadRecords();
     await loadPatients();
+    
+    // Sync local data to cloud if cloud is enabled
+    if (isCloudEnabled) {
+        await syncLocalDataToCloud();
+    }
+    
     populatePatientDropdown();
     updateHospitalFilters();
     displayRecords();
@@ -28,6 +34,107 @@ window.addEventListener('DOMContentLoaded', async () => {
     hideLoadingIndicator();
     updateSyncStatus();
 });
+
+// Sync local data to cloud
+window.syncLocalDataToCloud = async function() {
+    if (!isCloudEnabled) {
+        console.log('Cloud sync not enabled');
+        return;
+    }
+    
+    try {
+        showLoadingIndicator('Syncing local data to cloud...');
+        
+        // Get local records
+        const localRecordsStr = localStorage.getItem('patientRecords');
+        if (!localRecordsStr) {
+            console.log('No local records to sync');
+            hideLoadingIndicator();
+            return;
+        }
+        
+        const localRecords = JSON.parse(localRecordsStr);
+        
+        // Get cloud records to check what's already synced
+        const response = await fetch(API_ENDPOINTS.records);
+        const data = await response.json();
+        const cloudRecords = data.success ? data.records : [];
+        
+        // Find records that exist locally but not in cloud
+        // We'll use a combination of folderNumber, reviewDate, and serviceType as unique identifier
+        const cloudRecordKeys = new Set(
+            cloudRecords.map(r => `${r.folderNumber}-${r.reviewDate}-${r.serviceType}`)
+        );
+        
+        const recordsToSync = localRecords.filter(localRecord => {
+            const key = `${localRecord.folderNumber}-${localRecord.reviewDate}-${localRecord.serviceType}`;
+            return !cloudRecordKeys.has(key);
+        });
+        
+        if (recordsToSync.length === 0) {
+            console.log('✓ All local data already synced to cloud');
+            hideLoadingIndicator();
+            return;
+        }
+        
+        console.log(`Syncing ${recordsToSync.length} local records to cloud...`);
+        
+        let syncedCount = 0;
+        let errorCount = 0;
+        
+        // Sync each record
+        for (const record of recordsToSync) {
+            try {
+                const syncResponse = await fetch(API_ENDPOINTS.records, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        patientName: record.patientName,
+                        folderNumber: record.folderNumber,
+                        reviewDate: record.reviewDate,
+                        hospitalName: record.hospitalName,
+                        serviceType: record.serviceType,
+                        serviceDetails: record.serviceDetails,
+                        fee: record.fee,
+                        notes: record.notes || '',
+                        firstVisit: record.firstVisit || record.reviewDate
+                    })
+                });
+                
+                const syncData = await syncResponse.json();
+                if (syncData.success) {
+                    syncedCount++;
+                    console.log(`✓ Synced: ${record.patientName} - ${record.reviewDate}`);
+                } else {
+                    errorCount++;
+                    console.error('Sync failed for record:', record);
+                }
+            } catch (error) {
+                errorCount++;
+                console.error('Error syncing record:', error);
+            }
+        }
+        
+        // Reload records from cloud to get the updated list
+        await loadRecords();
+        displayRecords();
+        
+        hideLoadingIndicator();
+        
+        if (syncedCount > 0) {
+            alert(`✓ Successfully synced ${syncedCount} local records to cloud!${errorCount > 0 ? `\n⚠ ${errorCount} records failed to sync.` : ''}`);
+        } else if (errorCount > 0) {
+            alert(`⚠ Failed to sync ${errorCount} records. Please try again.`);
+        }
+        
+        console.log(`Sync complete: ${syncedCount} synced, ${errorCount} errors`);
+        
+    } catch (error) {
+        console.error('Error during local-to-cloud sync:', error);
+        hideLoadingIndicator();
+        alert('Error syncing data to cloud. Please check your connection and try again.');
+    }
+};
 
 // Load logo and convert to base64
 function loadLogo() {
@@ -77,18 +184,18 @@ function setDefaultDate() {
 // Check if cloud database is available
 async function checkCloudConnection() {
     try {
-        const response = await fetch(API_ENDPOINTS.patients, { 
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' }
-        });
-        isCloudEnabled = response.ok;
-        console.log(isCloudEnabled ? '✓ Cloud sync enabled' : '⚠ Using local storage only');
-        return isCloudEnabled;
+        const response = await fetch(API_ENDPOINTS.records);
+        const data = await response.json();
+        if (data.success !== undefined) {
+            isCloudEnabled = true;
+            console.log('☁️ Cloud sync enabled (Prisma Postgres + Accelerate)');
+            return true;
+        }
     } catch (error) {
-        console.warn('⚠ Cloud not available, using local storage');
-        isCloudEnabled = false;
-        return false;
+        console.log('💾 Cloud unavailable, using local storage only');
     }
+    isCloudEnabled = false;
+    return false;
 }
 
 // Load records from cloud or localStorage
@@ -1782,4 +1889,77 @@ function syncPatientsFromRecords() {
         console.log('Patient database synchronized with records');
     }
 }
+
+// Online/Offline event handlers for PWA
+window.addEventListener('online', async () => {
+    console.log('✓ Back online!');
+    updateSyncStatus();
+    
+    // Re-check cloud connection
+    await checkCloudConnection();
+    
+    // Auto-sync local data to cloud
+    if (isCloudEnabled && window.syncLocalDataToCloud) {
+        console.log('Auto-syncing local data to cloud...');
+        await syncLocalDataToCloud();
+    }
+});
+
+window.addEventListener('offline', () => {
+    console.log('⚠ Offline mode');
+    updateSyncStatus();
+});
+
+// Update sync status indicator
+function updateSyncStatus() {
+    // Create status indicator if it doesn't exist
+    let statusDiv = document.getElementById('syncStatus');
+    if (!statusDiv) {
+        statusDiv = document.createElement('div');
+        statusDiv.id = 'syncStatus';
+        statusDiv.style.cssText = `
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        `;
+        document.body.appendChild(statusDiv);
+    }
+    
+    const isOnline = navigator.onLine;
+    
+    if (isOnline && isCloudEnabled) {
+        statusDiv.innerHTML = '🟢 Cloud Synced';
+        statusDiv.style.backgroundColor = '#d4edda';
+        statusDiv.style.color = '#155724';
+    } else if (isOnline && !isCloudEnabled) {
+        statusDiv.innerHTML = '🟡 Online (Local Storage)';
+        statusDiv.style.backgroundColor = '#fff3cd';
+        statusDiv.style.color = '#856404';
+    } else {
+        statusDiv.innerHTML = '🔴 Offline Mode';
+        statusDiv.style.backgroundColor = '#f8d7da';
+        statusDiv.style.color = '#721c24';
+    }
+}
+
+// Manual sync button functionality
+window.manualSync = async function() {
+    if (!isCloudEnabled) {
+        alert('Cloud sync is not available. Please check your connection.');
+        return;
+    }
+    
+    if (confirm('Sync all local data to cloud?\n\nThis will upload any records that exist locally but not in the cloud database.')) {
+        await syncLocalDataToCloud();
+    }
+};
+
 

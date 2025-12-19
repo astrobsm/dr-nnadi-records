@@ -1,0 +1,40 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Patient {
+  folderNumber String   @id @map("folder_number") @db.VarChar(100)
+  patientName  String   @map("patient_name") @db.VarChar(255)
+  firstVisit   DateTime @map("first_visit") @db.Date
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  records      Record[]
+
+  @@map("patients")
+}
+
+model Record {
+  id             BigInt   @id @default(autoincrement())
+  patientName    String   @map("patient_name") @db.VarChar(255)
+  folderNumber   String   @map("folder_number") @db.VarChar(100)
+  reviewDate     DateTime @map("review_date") @db.Date
+  hospitalName   String   @map("hospital_name") @db.VarChar(255)
+  serviceType    String   @map("service_type") @db.VarChar(255)
+  serviceDetails String   @map("service_details") @db.Text
+  fee            Decimal  @db.Decimal(10, 2)
+  notes          String?  @db.Text
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  
+  patient        Patient  @relation(fields: [folderNumber], references: [folderNumber], onDelete: Cascade)
+
+  @@index([reviewDate(sort: Desc)], map: "idx_records_date")
+  @@index([folderNumber], map: "idx_records_folder")
+  @@map("records")
+}

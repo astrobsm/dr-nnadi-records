@@ -17,3 +17,5 @@ node_modules/
 patient-data.json
 records-backup.json
 .vercel
+
+/generated/prisma

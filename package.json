@@ -6,12 +6,23 @@
   "main": "api/index.js",
   "scripts": {
     "dev": "vercel dev",
-    "deploy": "vercel --prod"
+    "deploy": "vercel --prod",
+    "postinstall": "prisma generate"
   },
-  "keywords": ["medical", "records", "surgery", "vercel"],
+  "keywords": [
+    "medical",
+    "records",
+    "surgery",
+    "vercel"
+  ],
   "author": "Dr Nnadi",
   "license": "MIT",
   "dependencies": {
-    "@vercel/postgres": "^0.5.1"
+    "@vercel/postgres": "^0.5.1",
+    "@prisma/client": "^7.2.0",
+    "@prisma/extension-accelerate": "^1.2.1"
+  },
+  "devDependencies": {
+    "prisma": "^7.2.0"
   }
 }

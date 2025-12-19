@@ -4,12 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#2a5298">
+    <meta name="description" content="Patient record management for Niger Foundation Hospital">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Dr Nnadi's Records">
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="logo.png">
+    <link rel="icon" type="image/png" href="logo.png">
     <title>Dr Nnadi's Surgeries, Reviews and Procedures</title>
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -210,12 +212,21 @@
             <div class="card">
                 <h3>Data Management</h3>
                 <p style="color: #6c757d; margin-bottom: 20px;">
-                    All your patient data is stored locally on this device. Use these tools to backup or transfer data between devices.
+                    Your data syncs automatically to the cloud. Use these tools for backup and manual sync.
                 </p>
                 
                 <div class="data-section">
+                    <h4>☁️ Cloud Sync</h4>
+                    <p>Sync your local data to the cloud database for cross-device access.</p>
+                    <button class="btn btn-primary" onclick="manualSync()">🔄 Sync Local Data to Cloud</button>
+                    <p style="font-size: 0.9em; color: #6c757d; margin-top: 10px;">
+                        This will upload any records saved locally that aren't yet in the cloud.
+                    </p>
+                </div>
+                
+                <div class="data-section">
                     <h4>📥 Backup Data</h4>
-                    <p>Download all your records to a file that you can save or transfer to another device.</p>
+                    <p>Download all your records to a file that you can save as a backup.</p>
                     <button class="btn btn-primary" onclick="exportAllData()">Download Backup File</button>
                 </div>
 
@@ -253,7 +264,49 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script>
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then(registration => {
+                        console.log('✓ Service Worker registered:', registration.scope);
+                        
+                        // Check for updates
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    console.log('New version available! Refresh to update.');
+                                }
+                            });
+                        });
+                    })
+                    .catch(err => console.log('Service Worker registration failed:', err));
+            });
+            
+            // Listen for messages from service worker
+            navigator.serviceWorker.addEventListener('message', event => {
+                if (event.data && event.data.type === 'SYNC_DATA') {
+                    console.log('Sync requested by service worker');
+                    if (window.syncLocalDataToCloud) {
+                        window.syncLocalDataToCloud();
+                    }
+                }
+            });
+        }
+
+        // PWA install prompt
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            // Show install button/banner if desired
+            console.log('PWA install available');
+        });
+    </script>
     <script src="app.js"></script>
+
 </body>
 </html>
 
