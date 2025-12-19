@@ -1,32 +1,28 @@
-import pkg from 'pg';
-const { Pool } = pkg;
+import { PrismaClient } from '@prisma/client';
 
-const pool = new Pool({
-  connectionString: process.env.POSTGRES_URL,
-  ssl: { rejectUnauthorized: false }
-});
+const prisma = global.prismaPatients || new PrismaClient();
+if (process.env.NODE_ENV !== 'production') global.prismaPatients = prisma;
 
 export default async function handler(req, res) {
   try {
     // GET - Fetch all patients
     if (req.method === 'GET') {
-      const { rows } = await pool.query(`
-        SELECT 
-          folder_number as "folderNumber",
-          patient_name as "patientName",
-          first_visit as "firstVisit",
-          created_at as "createdAt"
-        FROM patients
-        ORDER BY patient_name ASC
-      `;
-      
-      // Convert to object format for compatibility
-      const patients = {};
-      rows.forEach(patient => {
-        patients[patient.folderNumber] = patient;
+      const patients = await prisma.patient.findMany({
+        orderBy: { patientName: 'asc' },
       });
       
-      return res.status(200).json({ success: true, patients });
+      // Convert to object format for compatibility
+      const patientsObj = {};
+      patients.forEach(patient => {
+        patientsObj[patient.folderNumber] = {
+          folderNumber: patient.folderNumber,
+          patientName: patient.patientName,
+          firstVisit: patient.firstVisit.toISOString().split('T')[0],
+          createdAt: patient.createdAt.toISOString()
+        };
+      });
+      
+      return res.status(200).json({ success: true, patients: patientsObj });
     }
 
     return res.status(405).json({ success: false, error: 'Method not allowed' });
@@ -36,7 +32,5 @@ export default async function handler(req, res) {
       success: false, 
       error: error.message 
     });
-  } finally {
-    await 
   }
 }
