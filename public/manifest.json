@@ -1,22 +1,44 @@
 {
   "name": "Dr Nnadi's Surgeries, Reviews and Procedures",
-  "short_name": "Dr Nnadi's Records",
-  "description": "Patient record management for Niger Foundation Hospital",
-  "start_url": "./index.html",
+  "short_name": "Dr Nnadi Records",
+  "description": "Patient record management for Niger Foundation Hospital - Burns Plastic and Reconstructive Surgery Services",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#2a5298",
   "theme_color": "#2a5298",
-  "orientation": "portrait",
+  "orientation": "portrait-primary",
+  "categories": ["medical", "health", "productivity"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "logo.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "logo.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "New Record",
+      "short_name": "New",
+      "description": "Add a new patient record",
+      "url": "./index.html",
+      "icons": [{ "src": "logo.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "View Records",
+      "short_name": "View",
+      "description": "View all patient records",
+      "url": "./index.html#view",
+      "icons": [{ "src": "logo.png", "sizes": "192x192" }]
     }
   ]
 }

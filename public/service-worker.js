@@ -1,5 +1,5 @@
 // Service Worker for Dr Nnadi's Records PWA
-const CACHE_NAME = 'dr-nnadi-records-v1';
+const CACHE_NAME = 'dr-nnadi-records-v2';
 const urlsToCache = [
   './',
   './index.html',
