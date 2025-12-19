@@ -1,4 +1,9 @@
-import { sql } from '@vercel/postgres';
+import { createPool } from '@vercel/postgres';
+
+// Create a connection pool with the Prisma Postgres URL
+const pool = createPool({
+  connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL
+});
 
 export default async function handler(req, res) {
   // Set CORS headers
@@ -13,7 +18,7 @@ export default async function handler(req, res) {
   try {
     // GET all patients
     if (req.method === 'GET') {
-      const { rows } = await sql`
+      const { rows } = await pool.sql`
         SELECT 
           p.folder_number,
           p.patient_name,

@@ -1,4 +1,9 @@
-import { sql } from '@vercel/postgres';
+import { createPool } from '@vercel/postgres';
+
+// Create a connection pool with the Prisma Postgres URL
+const pool = createPool({
+  connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL
+});
 
 export default async function handler(req, res) {
   // Set CORS headers
@@ -13,7 +18,7 @@ export default async function handler(req, res) {
   try {
     // GET all records with patients
     if (req.method === 'GET') {
-      const { rows } = await sql`
+      const { rows } = await pool.sql`
         SELECT 
           r.id,
           r.patient_name,
@@ -51,7 +56,7 @@ export default async function handler(req, res) {
       const { patientName, folderNumber, reviewDate, hospitalName, serviceType, serviceDetails, fee, notes, firstVisit } = req.body;
 
       // Upsert patient
-      await sql`
+      await pool.sql`
         INSERT INTO patients (folder_number, patient_name, first_visit)
         VALUES (${folderNumber}, ${patientName}, ${firstVisit || reviewDate})
         ON CONFLICT (folder_number) 
@@ -59,7 +64,7 @@ export default async function handler(req, res) {
       `;
 
       // Create record
-      const { rows } = await sql`
+      const { rows } = await pool.sql`
         INSERT INTO records (
           patient_name, folder_number, review_date, hospital_name,
           service_type, service_details, fee, notes
@@ -93,7 +98,7 @@ export default async function handler(req, res) {
     if (req.method === 'PUT') {
       const { id, patientName, folderNumber, reviewDate, hospitalName, serviceType, serviceDetails, fee, notes } = req.body;
 
-      const { rows } = await sql`
+      const { rows } = await pool.sql`
         UPDATE records
         SET 
           patient_name = ${patientName},
@@ -130,7 +135,7 @@ export default async function handler(req, res) {
     if (req.method === 'DELETE') {
       const { id } = req.query;
 
-      await sql`
+      await pool.sql`
         DELETE FROM records WHERE id = ${id}
       `;
 
