@@ -33,6 +33,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     setTimeout(loadLogo, 100);
     hideLoadingIndicator();
     updateSyncStatus();
+    updateHeaderSyncStatus();
     
     // Check if import banner should be shown
     checkImportBannerVisibility();
@@ -127,9 +128,12 @@ window.syncLocalDataToCloud = async function() {
             }
         }
         
-        // Reload records from cloud to get the updated list
-        await loadRecords();
+        // Force reload records from cloud to get the updated list
+        await loadRecordsFromCloud();
+        await loadPatients();
         displayRecords();
+        populatePatientDropdown();
+        updateHospitalFilters();
         
         hideLoadingIndicator();
         
@@ -2355,6 +2359,63 @@ function showSyncStatus(type, title, message) {
     setTimeout(() => {
         banner.style.display = 'none';
     }, 5000);
+}
+
+// Refresh data from cloud
+window.refreshFromCloud = async function() {
+    showLoadingIndicator('Refreshing from cloud...');
+    await loadRecordsFromCloud();
+    await loadPatients();
+    displayRecords();
+    populatePatientDropdown();
+    updateHospitalFilters();
+    if (document.getElementById('completeTab')?.classList.contains('active')) {
+        loadCompleteRecords();
+    }
+    hideLoadingIndicator();
+    updateHeaderSyncStatus();
+    alert('✓ Data refreshed from cloud!');
+};
+
+// Load records directly from cloud (force refresh)
+async function loadRecordsFromCloud() {
+    if (!isCloudEnabled) {
+        console.log('Cloud not enabled, loading from localStorage');
+        const stored = localStorage.getItem('patientRecords');
+        records = stored ? JSON.parse(stored) : [];
+        return;
+    }
+    
+    try {
+        const response = await fetch(API_ENDPOINTS.records + '?t=' + Date.now()); // Cache bust
+        const data = await response.json();
+        if (data.success && data.records) {
+            records = data.records;
+            // Save to localStorage as backup
+            localStorage.setItem('patientRecords', JSON.stringify(records));
+            console.log(`✓ Loaded ${records.length} records from cloud`);
+            return;
+        }
+    } catch (error) {
+        console.error('Error loading from cloud:', error);
+    }
+    
+    // Fallback to localStorage
+    const stored = localStorage.getItem('patientRecords');
+    records = stored ? JSON.parse(stored) : [];
+    console.log(`Loaded ${records.length} records from localStorage (fallback)`);
+}
+
+// Update header sync status
+function updateHeaderSyncStatus() {
+    const statusEl = document.getElementById('headerSyncStatus');
+    if (!statusEl) return;
+    
+    if (isCloudEnabled) {
+        statusEl.innerHTML = `☁️ ${records.length} records in cloud`;
+    } else {
+        statusEl.innerHTML = `💾 ${records.length} local records`;
+    }
 }
 
 // Check if import banner should be shown
