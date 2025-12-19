@@ -1,104 +1,90 @@
-import { createPool } from '@vercel/postgres';
-
-// Create a connection pool with the Prisma Postgres URL
-const pool = createPool({
-  connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL
-});
+import { sql } from '@vercel/postgres';
 
 export default async function handler(req, res) {
-  // Set CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
+  const query = sql(process.env.POSTGRES_PRISMA_URL || process.env.DATABASE_URL);
   try {
-    // GET all records with patients
+    // GET - Fetch all records
     if (req.method === 'GET') {
-      const { rows } = await pool.sql`
+      const { rows } = await query`
         SELECT 
-          r.id,
-          r.patient_name,
-          r.folder_number,
-          r.review_date,
-          r.hospital_name,
-          r.service_type,
-          r.service_details,
-          r.fee,
-          r.notes,
-          r.created_at
-        FROM records r
-        ORDER BY r.review_date DESC
+          id,
+          patient_name as "patientName",
+          folder_number as "folderNumber",
+          review_date as "reviewDate",
+          hospital_name as "hospitalName",
+          service_type as "serviceType",
+          service_details as "serviceDetails",
+          fee,
+          notes,
+          created_at as "createdAt"
+        FROM records
+        ORDER BY review_date DESC, created_at DESC
       `;
-      
-      return res.status(200).json({
-        success: true,
-        records: rows.map(r => ({
-          id: Number(r.id),
-          patientName: r.patient_name,
-          folderNumber: r.folder_number,
-          reviewDate: r.review_date.toISOString().split('T')[0],
-          hospitalName: r.hospital_name,
-          serviceType: r.service_type,
-          serviceDetails: r.service_details,
-          fee: Number(r.fee),
-          notes: r.notes || '',
-          createdAt: r.created_at.toISOString()
-        }))
-      });
+      return res.status(200).json({ success: true, records: rows });
     }
 
     // POST - Create new record
     if (req.method === 'POST') {
-      const { patientName, folderNumber, reviewDate, hospitalName, serviceType, serviceDetails, fee, notes, firstVisit } = req.body;
+      const {
+        patientName,
+        folderNumber,
+        reviewDate,
+        hospitalName,
+        serviceType,
+        serviceDetails,
+        fee,
+        notes
+      } = req.body;
 
-      // Upsert patient
-      await pool.sql`
+      // First, ensure patient exists or create it
+      await query`
         INSERT INTO patients (folder_number, patient_name, first_visit)
-        VALUES (${folderNumber}, ${patientName}, ${firstVisit || reviewDate})
+        VALUES (${folderNumber}, ${patientName}, ${reviewDate})
         ON CONFLICT (folder_number) 
-        DO UPDATE SET patient_name = ${patientName}
+        DO UPDATE SET 
+          patient_name = EXCLUDED.patient_name,
+          first_visit = LEAST(patients.first_visit, EXCLUDED.first_visit)
       `;
 
-      // Create record
-      const { rows } = await pool.sql`
-        INSERT INTO records (
-          patient_name, folder_number, review_date, hospital_name,
-          service_type, service_details, fee, notes
-        )
-        VALUES (
-          ${patientName}, ${folderNumber}, ${reviewDate}, ${hospitalName},
-          ${serviceType}, ${serviceDetails}, ${fee}, ${notes || null}
-        )
-        RETURNING *
+      // Insert record
+      const { rows } = await query`
+        INSERT INTO records 
+          (patient_name, folder_number, review_date, hospital_name, 
+           service_type, service_details, fee, notes)
+        VALUES 
+          (${patientName}, ${folderNumber}, ${reviewDate}, ${hospitalName},
+           ${serviceType}, ${serviceDetails}, ${fee}, ${notes || ''})
+        RETURNING 
+          id,
+          patient_name as "patientName",
+          folder_number as "folderNumber",
+          review_date as "reviewDate",
+          hospital_name as "hospitalName",
+          service_type as "serviceType",
+          service_details as "serviceDetails",
+          fee,
+          notes,
+          created_at as "createdAt"
       `;
 
-      const record = rows[0];
-      return res.status(200).json({
-        success: true,
-        record: {
-          id: Number(record.id),
-          patientName: record.patient_name,
-          folderNumber: record.folder_number,
-          reviewDate: record.review_date.toISOString().split('T')[0],
-          hospitalName: record.hospital_name,
-          serviceType: record.service_type,
-          serviceDetails: record.service_details,
-          fee: Number(record.fee),
-          notes: record.notes || '',
-          createdAt: record.created_at.toISOString()
-        }
-      });
+      return res.status(201).json({ success: true, record: rows[0] });
     }
 
     // PUT - Update record
     if (req.method === 'PUT') {
-      const { id, patientName, folderNumber, reviewDate, hospitalName, serviceType, serviceDetails, fee, notes } = req.body;
+      const {
+        id,
+        patientName,
+        folderNumber,
+        reviewDate,
+        hospitalName,
+        serviceType,
+        serviceDetails,
+        fee,
+        notes
+      } = req.body;
 
-      const { rows } = await pool.sql`
+      const { rows } = await query`
         UPDATE records
         SET 
           patient_name = ${patientName},
@@ -108,50 +94,46 @@ export default async function handler(req, res) {
           service_type = ${serviceType},
           service_details = ${serviceDetails},
           fee = ${fee},
-          notes = ${notes || null}
+          notes = ${notes || ''}
         WHERE id = ${id}
-        RETURNING *
+        RETURNING 
+          id,
+          patient_name as "patientName",
+          folder_number as "folderNumber",
+          review_date as "reviewDate",
+          hospital_name as "hospitalName",
+          service_type as "serviceType",
+          service_details as "serviceDetails",
+          fee,
+          notes,
+          created_at as "createdAt"
       `;
 
-      const record = rows[0];
-      return res.status(200).json({
-        success: true,
-        record: {
-          id: Number(record.id),
-          patientName: record.patient_name,
-          folderNumber: record.folder_number,
-          reviewDate: record.review_date.toISOString().split('T')[0],
-          hospitalName: record.hospital_name,
-          serviceType: record.service_type,
-          serviceDetails: record.service_details,
-          fee: Number(record.fee),
-          notes: record.notes || '',
-          createdAt: record.created_at.toISOString()
-        }
-      });
+      if (rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Record not found' });
+      }
+
+      return res.status(200).json({ success: true, record: rows[0] });
     }
 
     // DELETE - Delete record
     if (req.method === 'DELETE') {
       const { id } = req.query;
 
-      await pool.sql`
-        DELETE FROM records WHERE id = ${id}
-      `;
+      if (!id) {
+        return res.status(400).json({ success: false, error: 'ID required' });
+      }
 
-      return res.status(200).json({
-        success: true,
-        message: 'Record deleted'
-      });
+      await query`DELETE FROM records WHERE id = ${id}`;
+      return res.status(200).json({ success: true, message: 'Record deleted' });
     }
 
-    return res.status(405).json({ error: 'Method not allowed' });
-
+    return res.status(405).json({ success: false, error: 'Method not allowed' });
   } catch (error) {
-    console.error('API error:', error);
-    return res.status(500).json({
-      success: false,
-      error: error.message
+    console.error('Records API error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: error.message 
     });
   }
 }

@@ -1,53 +1,35 @@
-import { createPool } from '@vercel/postgres';
-
-// Create a connection pool with the Prisma Postgres URL
-const pool = createPool({
-  connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL
-});
+import { sql } from '@vercel/postgres';
 
 export default async function handler(req, res) {
-  // Set CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
+  const query = sql(process.env.POSTGRES_PRISMA_URL || process.env.DATABASE_URL);
   try {
-    // GET all patients
+    // GET - Fetch all patients
     if (req.method === 'GET') {
-      const { rows } = await pool.sql`
+      const { rows } = await query`
         SELECT 
-          p.folder_number,
-          p.patient_name,
-          p.first_visit,
-          COUNT(r.id) as record_count
-        FROM patients p
-        LEFT JOIN records r ON p.folder_number = r.folder_number
-        GROUP BY p.folder_number, p.patient_name, p.first_visit
-        ORDER BY p.patient_name ASC
+          folder_number as "folderNumber",
+          patient_name as "patientName",
+          first_visit as "firstVisit",
+          created_at as "createdAt"
+        FROM patients
+        ORDER BY patient_name ASC
       `;
-
-      return res.status(200).json({
-        success: true,
-        patients: rows.map(p => ({
-          folderNumber: p.folder_number,
-          patientName: p.patient_name,
-          firstVisit: p.first_visit.toISOString().split('T')[0],
-          recordCount: Number(p.record_count)
-        }))
+      
+      // Convert to object format for compatibility
+      const patients = {};
+      rows.forEach(patient => {
+        patients[patient.folderNumber] = patient;
       });
+      
+      return res.status(200).json({ success: true, patients });
     }
 
-    return res.status(405).json({ error: 'Method not allowed' });
-
+    return res.status(405).json({ success: false, error: 'Method not allowed' });
   } catch (error) {
     console.error('Patients API error:', error);
-    return res.status(500).json({
-      success: false,
-      error: error.message
+    return res.status(500).json({ 
+      success: false, 
+      error: error.message 
     });
   }
 }
