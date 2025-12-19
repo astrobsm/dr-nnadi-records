@@ -259,13 +259,40 @@
                     Your data syncs automatically to the cloud. Use these tools for backup and manual sync.
                 </p>
                 
+                <!-- Sync Status Banner -->
+                <div id="syncStatusBanner" style="display: none; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div id="syncStatusIcon" style="font-size: 24px;"></div>
+                        <div style="flex: 1;">
+                            <h4 id="syncStatusTitle" style="margin: 0 0 5px 0;"></h4>
+                            <p id="syncStatusMessage" style="margin: 0; font-size: 0.9em;"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Import Existing Data Section -->
+                <div class="data-section" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                    <h4 style="color: white; margin-bottom: 10px;">📱 Import Your Existing Phone Data</h4>
+                    <p style="margin-bottom: 15px;">If you have records saved in your Chrome app, click below to upload them to the cloud database for cross-device access.</p>
+                    <button class="btn" onclick="importAndSyncPhoneData()" style="background: white; color: #667eea; font-weight: 600; border: none;">
+                        🔄 Import & Sync Phone Data to Cloud
+                    </button>
+                    <p style="font-size: 0.85em; margin-top: 10px; opacity: 0.9;">
+                        This will check for any local records and upload them to the cloud. Safe to run multiple times - no duplicates will be created.
+                    </p>
+                </div>
+                
                 <div class="data-section">
-                    <h4>☁️ Cloud Sync</h4>
+                    <h4>☁️ Manual Cloud Sync</h4>
                     <p>Sync your local data to the cloud database for cross-device access.</p>
                     <button class="btn btn-primary" onclick="manualSync()">🔄 Sync Local Data to Cloud</button>
                     <p style="font-size: 0.9em; color: #6c757d; margin-top: 10px;">
                         This will upload any records saved locally that aren't yet in the cloud.
                     </p>
+                    <div id="localRecordsCount" style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 5px; display: none;">
+                        <strong>Local Records:</strong> <span id="localCount">0</span> | 
+                        <strong>Cloud Records:</strong> <span id="cloudCount">0</span>
+                    </div>
                 </div>
                 
                 <div class="data-section">

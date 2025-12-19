@@ -38,8 +38,8 @@ window.addEventListener('DOMContentLoaded', async () => {
 // Sync local data to cloud
 window.syncLocalDataToCloud = async function() {
     if (!isCloudEnabled) {
-        console.log('Cloud sync not enabled');
-        return;
+        showSyncStatus('error', 'Cloud Not Available', 'Unable to connect to cloud database. Please check your internet connection.');
+        return { success: false, synced: 0 };
     }
     
     try {
@@ -50,10 +50,17 @@ window.syncLocalDataToCloud = async function() {
         if (!localRecordsStr) {
             console.log('No local records to sync');
             hideLoadingIndicator();
-            return;
+            showSyncStatus('info', 'No Local Data', 'No records found in local storage to sync.');
+            return { success: true, synced: 0 };
         }
         
         const localRecords = JSON.parse(localRecordsStr);
+        
+        if (localRecords.length === 0) {
+            hideLoadingIndicator();
+            showSyncStatus('info', 'No Records', 'No records to sync.');
+            return { success: true, synced: 0 };
+        }
         
         // Get cloud records to check what's already synced
         const response = await fetch(API_ENDPOINTS.records);
@@ -74,7 +81,8 @@ window.syncLocalDataToCloud = async function() {
         if (recordsToSync.length === 0) {
             console.log('✓ All local data already synced to cloud');
             hideLoadingIndicator();
-            return;
+            showSyncStatus('success', 'Already Synced', `All ${localRecords.length} local records are already in the cloud.`);
+            return { success: true, synced: 0, total: localRecords.length };
         }
         
         console.log(`Syncing ${recordsToSync.length} local records to cloud...`);
@@ -105,6 +113,7 @@ window.syncLocalDataToCloud = async function() {
                 if (syncData.success) {
                     syncedCount++;
                     console.log(`✓ Synced: ${record.patientName} - ${record.reviewDate}`);
+                    showLoadingIndicator(`Syncing... ${syncedCount}/${recordsToSync.length}`);
                 } else {
                     errorCount++;
                     console.error('Sync failed for record:', record);
@@ -122,17 +131,22 @@ window.syncLocalDataToCloud = async function() {
         hideLoadingIndicator();
         
         if (syncedCount > 0) {
-            alert(`✓ Successfully synced ${syncedCount} local records to cloud!${errorCount > 0 ? `\n⚠ ${errorCount} records failed to sync.` : ''}`);
+            showSyncStatus('success', 'Sync Complete!', `Successfully uploaded ${syncedCount} records to cloud.${errorCount > 0 ? ` ${errorCount} failed.` : ''}`);
+            alert(`✓ Successfully synced ${syncedCount} local records to cloud!${errorCount > 0 ? `\n⚠ ${errorCount} records failed to sync.` : ''}\n\nYour data is now available on all your devices!`);
         } else if (errorCount > 0) {
+            showSyncStatus('error', 'Sync Failed', `Failed to sync ${errorCount} records.`);
             alert(`⚠ Failed to sync ${errorCount} records. Please try again.`);
         }
         
         console.log(`Sync complete: ${syncedCount} synced, ${errorCount} errors`);
+        return { success: syncedCount > 0, synced: syncedCount, errors: errorCount };
         
     } catch (error) {
         console.error('Error during local-to-cloud sync:', error);
         hideLoadingIndicator();
+        showSyncStatus('error', 'Sync Error', 'Failed to sync data. Please check your connection.');
         alert('Error syncing data to cloud. Please check your connection and try again.');
+        return { success: false, synced: 0 };
     }
 };
 
@@ -1127,6 +1141,20 @@ function updateDataStats() {
     const dataSize = new Blob([JSON.stringify({records, patients})]).size;
     const sizeKB = (dataSize / 1024).toFixed(2);
     document.getElementById('storageUsed').textContent = sizeKB + ' KB';
+    
+    // Update local vs cloud counts
+    const localRecordsStr = localStorage.getItem('patientRecords');
+    const localRecords = localRecordsStr ? JSON.parse(localRecordsStr) : [];
+    
+    const localCountEl = document.getElementById('localCount');
+    const cloudCountEl = document.getElementById('cloudCount');
+    const counterDiv = document.getElementById('localRecordsCount');
+    
+    if (localCountEl) localCountEl.textContent = localRecords.length;
+    if (cloudCountEl) cloudCountEl.textContent = records.length;
+    if (counterDiv && (localRecords.length > 0 || records.length > 0)) {
+        counterDiv.style.display = 'block';
+    }
 }
 
 // Export all data to file
@@ -2255,5 +2283,63 @@ async function exportCompleteRecordsToPDF() {
 window.loadCompleteRecords = loadCompleteRecords;
 window.exportCompleteRecordsToPDF = exportCompleteRecordsToPDF;
 
+// Import and Sync Phone Data
+window.importAndSyncPhoneData = async function() {
+    if (!isCloudEnabled) {
+        alert('❌ Cloud database not available.\n\nPlease check your internet connection and try again.');
+        return;
+    }
+    
+    const localRecordsStr = localStorage.getItem('patientRecords');
+    const localRecords = localRecordsStr ? JSON.parse(localRecordsStr) : [];
+    
+    if (localRecords.length === 0) {
+        alert('ℹ️ No local data found.\n\nYour Chrome app doesn\'t have any saved records yet, or they\'ve already been synced to the cloud.\n\nTry adding a record first, or check the "View Records" tab to see your cloud data.');
+        return;
+    }
+    
+    const message = `📱 Found ${localRecords.length} records in your Chrome app!\n\nClick OK to upload them to the cloud database.\n\nThis will:\n✓ Upload all your existing records to the cloud\n✓ Make them available on all your devices\n✓ Keep your local copy as backup\n✓ Avoid creating duplicates\n\nProceed with import?`;
+    
+    if (!confirm(message)) {
+        return;
+    }
+    
+    const result = await syncLocalDataToCloud();
+    
+    if (result.success && result.synced > 0) {
+        updateDataStats();
+    }
+};
+
+// Show sync status banner
+function showSyncStatus(type, title, message) {
+    const banner = document.getElementById('syncStatusBanner');
+    const icon = document.getElementById('syncStatusIcon');
+    const titleEl = document.getElementById('syncStatusTitle');
+    const messageEl = document.getElementById('syncStatusMessage');
+    
+    if (!banner) return;
+    
+    const configs = {
+        success: { bg: '#d4edda', color: '#155724', icon: '✅' },
+        error: { bg: '#f8d7da', color: '#721c24', icon: '❌' },
+        info: { bg: '#d1ecf1', color: '#0c5460', icon: 'ℹ️' },
+        warning: { bg: '#fff3cd', color: '#856404', icon: '⚠️' }
+    };
+    
+    const config = configs[type] || configs.info;
+    
+    banner.style.background = config.bg;
+    banner.style.color = config.color;
+    icon.textContent = config.icon;
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+    banner.style.display = 'block';
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+        banner.style.display = 'none';
+    }, 5000);
+}
 
 
