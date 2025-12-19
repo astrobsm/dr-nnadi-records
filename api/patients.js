@@ -1,15 +1,16 @@
-import { createClient } from '@vercel/postgres';
+import pkg from 'pg';
+const { Pool } = pkg;
+
+const pool = new Pool({
+  connectionString: process.env.POSTGRES_URL,
+  ssl: { rejectUnauthorized: false }
+});
 
 export default async function handler(req, res) {
-  const client = createClient({
-    connectionString: process.env.POSTGRES_URL
-  });
-  await client.connect();
-  
   try {
     // GET - Fetch all patients
     if (req.method === 'GET') {
-      const { rows } = await client.sql`
+      const { rows } = await pool.query(`
         SELECT 
           folder_number as "folderNumber",
           patient_name as "patientName",
@@ -36,6 +37,6 @@ export default async function handler(req, res) {
       error: error.message 
     });
   } finally {
-    await client.end();
+    await 
   }
 }

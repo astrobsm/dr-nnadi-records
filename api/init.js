@@ -1,14 +1,15 @@
-import { createClient } from '@vercel/postgres';
+import pkg from 'pg';
+const { Pool } = pkg;
+
+const pool = new Pool({
+  connectionString: process.env.POSTGRES_URL,
+  ssl: { rejectUnauthorized: false }
+});
 
 export default async function handler(req, res) {
-  const client = createClient({
-    connectionString: process.env.POSTGRES_URL
-  });
-  await client.connect();
-  
   try {
     // Create patients table
-    await client.sql`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS patients (
         folder_number VARCHAR(100) PRIMARY KEY,
         patient_name VARCHAR(255) NOT NULL,
@@ -18,7 +19,7 @@ export default async function handler(req, res) {
     `;
 
     // Create records table
-    await client.sql`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS records (
         id BIGSERIAL PRIMARY KEY,
         patient_name VARCHAR(255) NOT NULL,
@@ -35,11 +36,11 @@ export default async function handler(req, res) {
     `;
 
     // Create indexes for better performance
-    await client.sql`
+    await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_records_date ON records(review_date DESC)
     `;
     
-    await client.sql`
+    await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_records_folder ON records(folder_number)
     `;
 
@@ -55,6 +56,6 @@ export default async function handler(req, res) {
       stack: error.stack
     });
   } finally {
-    await client.end();
+    await pool.end();
   }
 }
