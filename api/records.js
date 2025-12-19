@@ -20,6 +20,7 @@ export default async function handler(req, res) {
       const result = await client.query(`
         SELECT * FROM records 
         ORDER BY review_date DESC, created_at DESC
+        LIMIT 100
       `);
       
       const rows = result.rows.map(r => ({
