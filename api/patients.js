@@ -1,11 +1,13 @@
-import { sql } from '@vercel/postgres';
+import { createClient } from '@vercel/postgres';
 
 export default async function handler(req, res) {
+  const client = await createClient();
+  await client.connect();
   
-try {
+  try {
     // GET - Fetch all patients
     if (req.method === 'GET') {
-      const { rows } = await sql`
+      const { rows } = await client.sql`
         SELECT 
           folder_number as "folderNumber",
           patient_name as "patientName",
@@ -31,5 +33,7 @@ try {
       success: false, 
       error: error.message 
     });
+  } finally {
+    await client.end();
   }
 }

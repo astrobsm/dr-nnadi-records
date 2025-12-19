@@ -1,10 +1,13 @@
-import { sql } from '@vercel/postgres';
+import { createClient } from '@vercel/postgres';
 
 export default async function handler(req, res) {
+  const client = await createClient();
+  await client.connect();
+  
   try {
     // GET - Fetch all records
     if (req.method === 'GET') {
-      const { rows } = await sql`
+      const { rows } = await client.sql`
         SELECT 
           id,
           patient_name as "patientName",
@@ -36,7 +39,7 @@ export default async function handler(req, res) {
       } = req.body;
 
       // First, ensure patient exists or create it
-      await sql`
+      await client.sql`
         INSERT INTO patients (folder_number, patient_name, first_visit)
         VALUES (${folderNumber}, ${patientName}, ${reviewDate})
         ON CONFLICT (folder_number) 
@@ -46,7 +49,7 @@ export default async function handler(req, res) {
       `;
 
       // Insert record
-      const { rows } = await sql`
+      const { rows } = await client.sql`
         INSERT INTO records 
           (patient_name, folder_number, review_date, hospital_name, 
            service_type, service_details, fee, notes)
@@ -83,7 +86,7 @@ export default async function handler(req, res) {
         notes
       } = req.body;
 
-      const { rows } = await sql`
+      const { rows } = await client.sql`
         UPDATE records
         SET 
           patient_name = ${patientName},
@@ -123,7 +126,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, error: 'ID required' });
       }
 
-      await sql`DELETE FROM records WHERE id = ${id}`;
+      await client.sql`DELETE FROM records WHERE id = ${id}`;
       return res.status(200).json({ success: true, message: 'Record deleted' });
     }
 
@@ -134,5 +137,7 @@ export default async function handler(req, res) {
       success: false, 
       error: error.message 
     });
+  } finally {
+    await client.end();
   }
 }
