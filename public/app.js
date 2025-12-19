@@ -33,6 +33,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     setTimeout(loadLogo, 100);
     hideLoadingIndicator();
     updateSyncStatus();
+    
+    // Check if import banner should be shown
+    checkImportBannerVisibility();
 });
 
 // Sync local data to cloud
@@ -2295,6 +2298,12 @@ window.importAndSyncPhoneData = async function() {
     
     if (localRecords.length === 0) {
         alert('ℹ️ No local data found.\n\nYour Chrome app doesn\'t have any saved records yet, or they\'ve already been synced to the cloud.\n\nTry adding a record first, or check the "View Records" tab to see your cloud data.');
+        // Hide the import banner since there's nothing to import
+        const importBanner = document.getElementById('importDataBanner');
+        if (importBanner) {
+            importBanner.style.display = 'none';
+            localStorage.setItem('importBannerDismissed', 'true');
+        }
         return;
     }
     
@@ -2308,6 +2317,12 @@ window.importAndSyncPhoneData = async function() {
     
     if (result.success && result.synced > 0) {
         updateDataStats();
+        // Hide the import banner after successful sync
+        const importBanner = document.getElementById('importDataBanner');
+        if (importBanner) {
+            importBanner.style.display = 'none';
+            localStorage.setItem('importBannerDismissed', 'true');
+        }
     }
 };
 
@@ -2340,6 +2355,30 @@ function showSyncStatus(type, title, message) {
     setTimeout(() => {
         banner.style.display = 'none';
     }, 5000);
+}
+
+// Check if import banner should be shown
+function checkImportBannerVisibility() {
+    const importBanner = document.getElementById('importDataBanner');
+    if (!importBanner) return;
+    
+    // Check if user has dismissed the banner
+    const dismissed = localStorage.getItem('importBannerDismissed');
+    if (dismissed === 'true') {
+        importBanner.style.display = 'none';
+        return;
+    }
+    
+    // Check if there's local data to import
+    const localRecordsStr = localStorage.getItem('patientRecords');
+    const localRecords = localRecordsStr ? JSON.parse(localRecordsStr) : [];
+    
+    // Show banner only if there's local data that might not be synced yet
+    if (localRecords.length > 0) {
+        importBanner.style.display = 'block';
+    } else {
+        importBanner.style.display = 'none';
+    }
 }
 
 
