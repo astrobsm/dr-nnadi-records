@@ -1,12 +1,10 @@
 import pg from 'pg';
 const { Pool } = pg;
 
-// Create a connection pool with specific timeout settings
+// Create a connection pool with Supabase
 const pool = new Pool({
-  connectionString: process.env.POSTGRES_URL,
+  connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-  connectionTimeoutMillis: 5000,
-  idleTimeoutMillis: 10000,
   max: 1 // Limit pool size for serverless
 });
 
