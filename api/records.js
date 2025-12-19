@@ -1,8 +1,10 @@
 import { PrismaClient } from '@prisma/client';
 import { withAccelerate } from '@prisma/extension-accelerate';
 
+const connectionString = (process.env.POSTGRES_PRISMA_URL || process.env.PRISMA_DATABASE_URL || '').replace(/^[`'"]|[`'"]$/g, '');
+
 const prisma = global.prisma || new PrismaClient({
-  datasourceUrl: process.env.POSTGRES_PRISMA_URL || process.env.PRISMA_DATABASE_URL
+  datasourceUrl: connectionString
 }).$extends(withAccelerate());
 
 if (process.env.NODE_ENV !== 'production') global.prisma = prisma;
