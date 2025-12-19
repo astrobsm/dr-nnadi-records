@@ -4,11 +4,11 @@ let patients = {}; // Store unique patients by folder number
 let logoDataUrl = null;
 let isCloudEnabled = false;
 
-// API Configuration - Using Prisma for cloud sync
+// API Configuration - Using cloud database
 const API_BASE = window.location.hostname === 'localhost' ? '' : '';
 const API_ENDPOINTS = {
-    records: `${API_BASE}/api/prisma-records`,
-    patients: `${API_BASE}/api/prisma-patients`,
+    records: `${API_BASE}/api/records`,
+    patients: `${API_BASE}/api/patients`,
     backup: `${API_BASE}/api/backup`,
     init: `${API_BASE}/api/init`
 };

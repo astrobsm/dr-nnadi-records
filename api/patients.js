@@ -1,11 +1,11 @@
 import { sql } from '@vercel/postgres';
 
 export default async function handler(req, res) {
-  const query = sql(process.env.POSTGRES_PRISMA_URL || process.env.DATABASE_URL);
+  
   try {
     // GET - Fetch all patients
     if (req.method === 'GET') {
-      const { rows } = await query`
+      const { rows } = await sql`
         SELECT 
           folder_number as "folderNumber",
           patient_name as "patientName",
