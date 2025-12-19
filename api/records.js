@@ -1,6 +1,10 @@
 import { PrismaClient } from '@prisma/client';
+import { withAccelerate } from '@prisma/extension-accelerate';
 
-const prisma = global.prisma || new PrismaClient();
+const prisma = global.prisma || new PrismaClient({
+  datasourceUrl: process.env.POSTGRES_PRISMA_URL || process.env.PRISMA_DATABASE_URL
+}).$extends(withAccelerate());
+
 if (process.env.NODE_ENV !== 'production') global.prisma = prisma;
 
 export default async function handler(req, res) {
