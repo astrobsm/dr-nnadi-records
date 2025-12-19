@@ -1,8 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-import { withAccelerate } from '@prisma/extension-accelerate';
-
-// Initialize Prisma Client with Accelerate
-const prisma = new PrismaClient().$extends(withAccelerate());
+import { sql } from '@vercel/postgres';
 
 export default async function handler(req, res) {
   // Set CORS headers
@@ -17,22 +13,25 @@ export default async function handler(req, res) {
   try {
     // GET all patients
     if (req.method === 'GET') {
-      const patients = await prisma.patient.findMany({
-        orderBy: { patientName: 'asc' },
-        include: {
-          _count: {
-            select: { records: true }
-          }
-        }
-      });
+      const { rows } = await sql`
+        SELECT 
+          p.folder_number,
+          p.patient_name,
+          p.first_visit,
+          COUNT(r.id) as record_count
+        FROM patients p
+        LEFT JOIN records r ON p.folder_number = r.folder_number
+        GROUP BY p.folder_number, p.patient_name, p.first_visit
+        ORDER BY p.patient_name ASC
+      `;
 
       return res.status(200).json({
         success: true,
-        patients: patients.map(p => ({
-          folderNumber: p.folderNumber,
-          patientName: p.patientName,
-          firstVisit: p.firstVisit.toISOString().split('T')[0],
-          recordCount: p._count.records
+        patients: rows.map(p => ({
+          folderNumber: p.folder_number,
+          patientName: p.patient_name,
+          firstVisit: p.first_visit.toISOString().split('T')[0],
+          recordCount: Number(p.record_count)
         }))
       });
     }
@@ -40,7 +39,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
 
   } catch (error) {
-    console.error('Prisma Patients API error:', error);
+    console.error('Patients API error:', error);
     return res.status(500).json({
       success: false,
       error: error.message

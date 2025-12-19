@@ -1,8 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-import { withAccelerate } from '@prisma/extension-accelerate';
-
-// Initialize Prisma Client with Accelerate for edge runtime
-const prisma = new PrismaClient().$extends(withAccelerate());
+import { sql } from '@vercel/postgres';
 
 export default async function handler(req, res) {
   // Set CORS headers
@@ -17,26 +13,35 @@ export default async function handler(req, res) {
   try {
     // GET all records with patients
     if (req.method === 'GET') {
-      const records = await prisma.record.findMany({
-        orderBy: { reviewDate: 'desc' },
-        include: {
-          patient: true
-        }
-      });
+      const { rows } = await sql`
+        SELECT 
+          r.id,
+          r.patient_name,
+          r.folder_number,
+          r.review_date,
+          r.hospital_name,
+          r.service_type,
+          r.service_details,
+          r.fee,
+          r.notes,
+          r.created_at
+        FROM records r
+        ORDER BY r.review_date DESC
+      `;
       
       return res.status(200).json({
         success: true,
-        records: records.map(r => ({
+        records: rows.map(r => ({
           id: Number(r.id),
-          patientName: r.patientName,
-          folderNumber: r.folderNumber,
-          reviewDate: r.reviewDate.toISOString().split('T')[0],
-          hospitalName: r.hospitalName,
-          serviceType: r.serviceType,
-          serviceDetails: r.serviceDetails,
+          patientName: r.patient_name,
+          folderNumber: r.folder_number,
+          reviewDate: r.review_date.toISOString().split('T')[0],
+          hospitalName: r.hospital_name,
+          serviceType: r.service_type,
+          serviceDetails: r.service_details,
           fee: Number(r.fee),
           notes: r.notes || '',
-          createdAt: r.createdAt.toISOString()
+          createdAt: r.created_at.toISOString()
         }))
       });
     }
@@ -45,44 +50,41 @@ export default async function handler(req, res) {
     if (req.method === 'POST') {
       const { patientName, folderNumber, reviewDate, hospitalName, serviceType, serviceDetails, fee, notes, firstVisit } = req.body;
 
-      // Upsert patient (create or update)
-      await prisma.patient.upsert({
-        where: { folderNumber },
-        update: { patientName },
-        create: {
-          folderNumber,
-          patientName,
-          firstVisit: firstVisit ? new Date(firstVisit) : new Date(reviewDate)
-        }
-      });
+      // Upsert patient
+      await sql`
+        INSERT INTO patients (folder_number, patient_name, first_visit)
+        VALUES (${folderNumber}, ${patientName}, ${firstVisit || reviewDate})
+        ON CONFLICT (folder_number) 
+        DO UPDATE SET patient_name = ${patientName}
+      `;
 
       // Create record
-      const record = await prisma.record.create({
-        data: {
-          patientName,
-          folderNumber,
-          reviewDate: new Date(reviewDate),
-          hospitalName,
-          serviceType,
-          serviceDetails,
-          fee: parseFloat(fee),
-          notes: notes || null
-        }
-      });
+      const { rows } = await sql`
+        INSERT INTO records (
+          patient_name, folder_number, review_date, hospital_name,
+          service_type, service_details, fee, notes
+        )
+        VALUES (
+          ${patientName}, ${folderNumber}, ${reviewDate}, ${hospitalName},
+          ${serviceType}, ${serviceDetails}, ${fee}, ${notes || null}
+        )
+        RETURNING *
+      `;
 
+      const record = rows[0];
       return res.status(200).json({
         success: true,
         record: {
           id: Number(record.id),
-          patientName: record.patientName,
-          folderNumber: record.folderNumber,
-          reviewDate: record.reviewDate.toISOString().split('T')[0],
-          hospitalName: record.hospitalName,
-          serviceType: record.serviceType,
-          serviceDetails: record.serviceDetails,
+          patientName: record.patient_name,
+          folderNumber: record.folder_number,
+          reviewDate: record.review_date.toISOString().split('T')[0],
+          hospitalName: record.hospital_name,
+          serviceType: record.service_type,
+          serviceDetails: record.service_details,
           fee: Number(record.fee),
           notes: record.notes || '',
-          createdAt: record.createdAt.toISOString()
+          createdAt: record.created_at.toISOString()
         }
       });
     }
@@ -91,33 +93,35 @@ export default async function handler(req, res) {
     if (req.method === 'PUT') {
       const { id, patientName, folderNumber, reviewDate, hospitalName, serviceType, serviceDetails, fee, notes } = req.body;
 
-      const record = await prisma.record.update({
-        where: { id: BigInt(id) },
-        data: {
-          patientName,
-          folderNumber,
-          reviewDate: new Date(reviewDate),
-          hospitalName,
-          serviceType,
-          serviceDetails,
-          fee: parseFloat(fee),
-          notes: notes || null
-        }
-      });
+      const { rows } = await sql`
+        UPDATE records
+        SET 
+          patient_name = ${patientName},
+          folder_number = ${folderNumber},
+          review_date = ${reviewDate},
+          hospital_name = ${hospitalName},
+          service_type = ${serviceType},
+          service_details = ${serviceDetails},
+          fee = ${fee},
+          notes = ${notes || null}
+        WHERE id = ${id}
+        RETURNING *
+      `;
 
+      const record = rows[0];
       return res.status(200).json({
         success: true,
         record: {
           id: Number(record.id),
-          patientName: record.patientName,
-          folderNumber: record.folderNumber,
-          reviewDate: record.reviewDate.toISOString().split('T')[0],
-          hospitalName: record.hospitalName,
-          serviceType: record.serviceType,
-          serviceDetails: record.serviceDetails,
+          patientName: record.patient_name,
+          folderNumber: record.folder_number,
+          reviewDate: record.review_date.toISOString().split('T')[0],
+          hospitalName: record.hospital_name,
+          serviceType: record.service_type,
+          serviceDetails: record.service_details,
           fee: Number(record.fee),
           notes: record.notes || '',
-          createdAt: record.createdAt.toISOString()
+          createdAt: record.created_at.toISOString()
         }
       });
     }
@@ -126,9 +130,9 @@ export default async function handler(req, res) {
     if (req.method === 'DELETE') {
       const { id } = req.query;
 
-      await prisma.record.delete({
-        where: { id: BigInt(id) }
-      });
+      await sql`
+        DELETE FROM records WHERE id = ${id}
+      `;
 
       return res.status(200).json({
         success: true,
@@ -139,7 +143,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
 
   } catch (error) {
-    console.error('Prisma API error:', error);
+    console.error('API error:', error);
     return res.status(500).json({
       success: false,
       error: error.message
